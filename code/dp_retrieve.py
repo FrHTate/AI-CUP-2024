@@ -8,10 +8,10 @@ import json
 import argparse
 import jieba  # 用於中文文本分詞
 import pdfplumber  # 用於從PDF文件中提取文字的工具
+from bm25_retrieve import BM25_retrieve
 
-tokenizer = BertTokenizer.from_pretrained("bert-base-chinese")
-model = BertModel.from_pretrained("bert-base-chinese")
-
+tokenizer = BertTokenizer.from_pretrained("ckiplab/bert-base-chinese")
+model = BertModel.from_pretrained("ckiplab/bert-base-chinese")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if device.type == "cuda":
     print("Using GPU")
@@ -24,7 +24,7 @@ def load_data(source_path):
     masked_file_ls = os.listdir(source_path)  # 獲取資料夾中的檔案列表
     corpus_dict = {
         int(file.replace(".pdf", "")): read_pdf(os.path.join(source_path, file))
-        for file in tqdm(masked_file_ls)
+        for file in tqdm(masked_file_ls, desc="Loading data")
     }  # 讀取每個PDF文件的文本，並以檔案名作為鍵，文本內容作為值存入字典
     return corpus_dict
 
@@ -51,7 +51,11 @@ def encode_corpus(corpus):
     encoded_corpus = []
     for document in tqdm(corpus, desc="Encoding corpus"):
         inputs = tokenizer(
-            document, return_tensors="pt", padding=True, truncation=True, max_length=512
+            document,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=512,
         ).to(device)
         with torch.no_grad():
             outputs = model(**inputs)
@@ -75,12 +79,13 @@ def encode_query(query):
 
 
 # Perform retrieval with FAISS
-def dense_retrieve(query, corpus_vectors, source):
+def dense_retrieve(query, source, corpus_vectors):
     query_vector = encode_query(query)
     index = faiss.IndexFlatL2(corpus_vectors.shape[1])  # Create FAISS index
-    index.add([corpus_vectors[idx] for idx in source])  # Add corpus vectors to index
-    D, I = index.search(query_vector.reshape(1, -1), k=1)  # Search for top k=1 match
-    return I[0][0]  # Return the best matching document index
+    source_vectors = np.array([corpus_vectors[idx] for idx in source])
+    index.add(source_vectors)
+    D, I = index.search(query_vector.reshape(1, -1), k=1)
+    return source[I[0][0]]
 
 
 if __name__ == "__main__":
@@ -139,7 +144,7 @@ if __name__ == "__main__":
     for q_dict in qs_ref["questions"]:
         if q_dict["category"] == "finance":
             retrieved_idx = dense_retrieve(
-                q_dict["query"], corpus_vectors_finance, corpus_dict_finance
+                q_dict["query"], q_dict["source"], corpus_vectors_finance
             )
             answer_dict["answers"].append(
                 {"qid": q_dict["qid"], "retrieve": int(retrieved_idx)}
@@ -147,12 +152,24 @@ if __name__ == "__main__":
 
         elif q_dict["category"] == "insurance":
             retrieved_idx = dense_retrieve(
-                q_dict["query"], corpus_vectors_insurance, corpus_dict_insurance
+                q_dict["query"], q_dict["source"], corpus_vectors_insurance
             )
             answer_dict["answers"].append(
                 {"qid": q_dict["qid"], "retrieve": int(retrieved_idx)}
             )
+        elif q_dict["category"] == "faq":
+            corpus_dict_faq = {
+                key: str(value)
+                for key, value in key_to_source_dict.items()
+                if key in q_dict["source"]
+            }
+            retrieved = BM25_retrieve(
+                q_dict["query"], q_dict["source"], corpus_dict_faq
+            )
+            answer_dict["answers"].append({"qid": q_dict["qid"], "retrieve": retrieved})
 
+        else:
+            raise ValueError("Something went wrong")  # 如果過程有問題，拋出錯誤
         # Handle the FAQ similarly by encoding its vectors and using dense_retrieve
 
     with open(args.output_path, "w", encoding="utf8") as f:
