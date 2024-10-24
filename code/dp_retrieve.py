@@ -12,6 +12,13 @@ import pdfplumber  # 用於從PDF文件中提取文字的工具
 tokenizer = BertTokenizer.from_pretrained("bert-base-chinese")
 model = BertModel.from_pretrained("bert-base-chinese")
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if device.type == "cuda":
+    print("Using GPU")
+else:
+    print("Using CPU")
+model = model.to(device)
+
 
 def load_data(source_path):
     masked_file_ls = os.listdir(source_path)  # 獲取資料夾中的檔案列表
@@ -45,11 +52,11 @@ def encode_corpus(corpus):
     for document in tqdm(corpus, desc="Encoding corpus"):
         inputs = tokenizer(
             document, return_tensors="pt", padding=True, truncation=True, max_length=512
-        )
+        ).to(device)
         with torch.no_grad():
             outputs = model(**inputs)
         cls_embeddings = (
-            outputs.last_hidden_state[:, 0, :].squeeze().numpy()
+            outputs.last_hidden_state[:, 0, :].squeeze().cpu().numpy()
         )  # [CLS] token embedding
         encoded_corpus.append(cls_embeddings)
     return np.array(encoded_corpus)
@@ -59,17 +66,19 @@ def encode_corpus(corpus):
 def encode_query(query):
     inputs = tokenizer(
         query, return_tensors="pt", padding=True, truncation=True, max_length=512
-    )
+    ).to(device)
     with torch.no_grad():
         outputs = model(**inputs)
-    return outputs.last_hidden_state[:, 0, :].squeeze().numpy()  # [CLS] token embedding
+    return (
+        outputs.last_hidden_state[:, 0, :].squeeze().cpu().numpy()
+    )  # [CLS] token embedding
 
 
 # Perform retrieval with FAISS
-def dense_retrieve(query, corpus_vectors, corpus_dict):
+def dense_retrieve(query, corpus_vectors, source):
     query_vector = encode_query(query)
     index = faiss.IndexFlatL2(corpus_vectors.shape[1])  # Create FAISS index
-    index.add(corpus_vectors)  # Add corpus vectors to index
+    index.add([corpus_vectors[idx] for idx in source])  # Add corpus vectors to index
     D, I = index.search(query_vector.reshape(1, -1), k=1)  # Search for top k=1 match
     return I[0][0]  # Return the best matching document index
 
