@@ -1,3 +1,6 @@
+# Execute on the command line:
+# python bm25_retrieve.py --question_path <question_path> --source_path <source_path> --output_path <output_path>
+
 import os
 import json
 import argparse
