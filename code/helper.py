@@ -1,6 +1,9 @@
+import os
+import pandas as pd
+from bm25_retrieve import read_pdf
 from pdf2image import convert_from_path
-from PIL import Image
 import pytesseract
+from multiprocessing import Pool
 
 
 # extract text from pdf image
@@ -13,5 +16,78 @@ def read_pdf_image(path):
     return text
 
 
-path = "./reference/finance/5.pdf"
-print(read_pdf_image(path))
+def mark_category(file_path):
+    text = read_pdf(file_path)
+    if text.strip() == "":
+        return "image", file_path[:-4]
+    else:
+        return "text", file_path[:-4]
+
+
+# Only want to track how much image pdfs in reference folder
+def track_image_pdf(path):
+    reference = ["finance", "insurance"]
+    image_idx = []
+    text_idx = []
+
+    for ref in reference:
+        ref_path = os.path.join(path, ref)
+        pdf_files = [
+            os.path.join(ref_path, file)
+            for file in os.listdir(ref_path)
+            if file.endswith(".pdf")
+        ]
+
+        with Pool(os.cpu_count()) as pool:
+            results = pool.map(mark_category, pdf_files)
+
+        for result_type, file_path in results:
+            file_name = os.path.basename(file_path)
+            file_category = os.path.basename(os.path.dirname(file_path))
+            if result_type == "image":
+                image_idx.append([file_category, file_name])
+            else:
+                text_idx.append([file_category, file_name])
+
+    return image_idx, text_idx
+
+
+def preprocessor(path):
+    reference = ["finance", "insurance"]
+
+    for i, ref in enumerate(reference):
+        ref_path = os.path.join(path, ref)
+        index = []
+        texts = []
+
+        for file_name in os.listdir(ref_path):
+            if file_name.endswith(".pdf"):
+                file_path = os.path.join(ref_path, file_name)
+                text = read_pdf(file_path)
+                if text.strip() == "":
+                    text = read_pdf_image(file_path)
+                # text ignore "\n" and " "
+                text = text.replace("\n", " ")
+                text = text.replace(" ", "")
+
+                index.append(file_name[:-4])
+                texts.append(text)
+
+        df = pd.DataFrame({"index": index, "text": texts})
+        df.to_csv(f"./reference/{ref}.csv")
+
+        if i == 6:
+            break
+
+
+if __name__ == "__main__":
+    # Test read_pdf_image
+    # path = "./reference/finance/1.pdf"
+    # print(read_pdf_image(path))
+
+    # Test track_image_pdf
+    # image_idx, text_idx = track_image_pdf("./reference")
+    # print(image_idx)
+
+    # Test Preprocessor
+    # preprocessor("./reference")
