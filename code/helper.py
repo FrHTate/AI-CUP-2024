@@ -4,6 +4,8 @@ from bm25_retrieve import read_pdf
 from pdf2image import convert_from_path
 import pytesseract
 from multiprocessing import Pool
+from tqdm import tqdm
+import json
 
 
 # extract text from pdf image
@@ -55,29 +57,26 @@ def track_image_pdf(path):
 def preprocessor(path):
     reference = ["finance", "insurance"]
 
-    for i, ref in enumerate(reference):
+    for ref in reference:
         ref_path = os.path.join(path, ref)
         index = []
         texts = []
 
-        for file_name in os.listdir(ref_path):
-            if file_name.endswith(".pdf"):
-                file_path = os.path.join(ref_path, file_name)
-                text = read_pdf(file_path)
-                if text.strip() == "":
-                    text = read_pdf_image(file_path)
-                # text ignore "\n" and " "
-                text = text.replace("\n", " ")
-                text = text.replace(" ", "")
+        pdf_files = [file for file in os.listdir(ref_path) if file.endswith(".pdf")]
+        for file_name in tqdm(pdf_files, desc=f"Processing {ref} files"):
+            file_path = os.path.join(ref_path, file_name)
+            text = read_pdf(file_path)
+            if text.strip() == "":
+                text = read_pdf_image(file_path)
 
-                index.append(file_name[:-4])
-                texts.append(text)
+            # Remove characters that might interfere with JSON parsing
+            text = text.replace("\n", "").replace("\r", "").strip()
+            index.append(file_name[:-4])
+            texts.append(text)
 
-        df = pd.DataFrame({"index": index, "text": texts})
-        df.to_csv(f"./reference/{ref}.csv")
-
-        if i == 6:
-            break
+        data = [{"index": idx, "text": txt} for idx, txt in zip(index, texts)]
+        with open(f"./reference/{ref}.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
 
 
 if __name__ == "__main__":
@@ -90,4 +89,5 @@ if __name__ == "__main__":
     # print(image_idx)
 
     # Test Preprocessor
-    # preprocessor("./reference")
+    preprocessor("./reference")
+    pass
