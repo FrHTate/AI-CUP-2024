@@ -3,4 +3,5 @@ dataset
 reference
 Context Doc
 test.ipynb
+__pycache__
 image_file.txt
