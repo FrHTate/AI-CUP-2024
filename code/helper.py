@@ -1,10 +1,16 @@
+<<<<<<< HEAD
 # Import necessary libraries
 import os
 import json
 import pandas as pd
+=======
+import os
+import pandas as pd
+from bm25_retrieve import read_pdf
+>>>>>>> refs/remotes/origin/main
 from pdf2image import convert_from_path
-from PIL import Image
 import pytesseract
+<<<<<<< HEAD
 import torch
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 from tqdm import tqdm
@@ -15,6 +21,11 @@ model = AutoModelForMaskedLM.from_pretrained("hfl/chinese-roberta-wwm-ext")
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
 model.to(device)
+=======
+from multiprocessing import Pool
+from tqdm import tqdm
+import json
+>>>>>>> refs/remotes/origin/main
 
 
 # Function to extract text from PDF images using OCR
@@ -26,6 +37,7 @@ def read_pdf_image(path):
     return text
 
 
+<<<<<<< HEAD
 # Example usage of PDF text extraction
 path = "./reference/finance/5.pdf"
 print(read_pdf_image(path))
@@ -86,3 +98,78 @@ def data_loader(source_path):
         file_path = os.path.join(source_path, file)
         embeddings = passage_embedding(file_path)
         print(embeddings)
+=======
+def mark_category(file_path):
+    text = read_pdf(file_path)
+    if text.strip() == "":
+        return "image", file_path[:-4]
+    else:
+        return "text", file_path[:-4]
+
+
+# Only want to track how much image pdfs in reference folder
+def track_image_pdf(path):
+    reference = ["finance", "insurance"]
+    image_idx = []
+    text_idx = []
+
+    for ref in reference:
+        ref_path = os.path.join(path, ref)
+        pdf_files = [
+            os.path.join(ref_path, file)
+            for file in os.listdir(ref_path)
+            if file.endswith(".pdf")
+        ]
+
+        with Pool(os.cpu_count()) as pool:
+            results = pool.map(mark_category, pdf_files)
+
+        for result_type, file_path in results:
+            file_name = os.path.basename(file_path)
+            file_category = os.path.basename(os.path.dirname(file_path))
+            if result_type == "image":
+                image_idx.append([file_category, file_name])
+            else:
+                text_idx.append([file_category, file_name])
+
+    return image_idx, text_idx
+
+
+def preprocessor(path):
+    reference = ["finance", "insurance"]
+
+    for ref in reference:
+        ref_path = os.path.join(path, ref)
+        index = []
+        texts = []
+
+        pdf_files = [file for file in os.listdir(ref_path) if file.endswith(".pdf")]
+        for file_name in tqdm(pdf_files, desc=f"Processing {ref} files"):
+            file_path = os.path.join(ref_path, file_name)
+            text = read_pdf(file_path)
+            if text.strip() == "":
+                text = read_pdf_image(file_path)
+
+            # Remove characters that might interfere with JSON parsing
+            text = text.replace("\n", "").replace("\r", "").strip()
+            index.append(file_name[:-4])
+            texts.append(text)
+
+        data = [{"index": idx, "text": txt} for idx, txt in zip(index, texts)]
+        with open(f"./reference/{ref}.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
+
+if __name__ == "__main__":
+    # Test read_pdf_image
+    # path = "./reference/finance/1.pdf"
+    # print(read_pdf_image(path))
+
+    # Test track_image_pdf
+    # image_idx, text_idx = track_image_pdf("./reference")
+    # print(image_idx)
+
+    # Test Preprocessor
+    preprocessor("./reference")
+    pass
+>>>>>>> refs/remotes/origin/main

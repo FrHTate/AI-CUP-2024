@@ -1,7 +1,14 @@
 .venv
+
 dataset
-reference
+reference/faq
+reference/finance
+reference/insurance
+
 Context Doc
 test.ipynb
+test.py
+
 __pycache__
+image_file.txt
 output.csv
