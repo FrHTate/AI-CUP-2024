@@ -81,7 +81,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         help="輸出符合參賽格式的答案路徑",
-        default="/home/delic/Desktop/Code/AICup2024/AI-CUP-2024/dataset/preliminary/pred_retrieve.json",
+        default="/home/delic/Desktop/Code/AICup2024/AI-CUP-2024/dataset/preliminary/pred_retrieve_filtered.json",
     )  # 答案輸出的路徑
 
     args = parser.parse_args()  # 解析參數
@@ -96,14 +96,20 @@ if __name__ == "__main__":
     )  # 設定參考資料路徑
     corpus_dict_insurance = load_data(source_path_insurance)
 
-    source_path_finance = os.path.join(args.source_path, "finance")  # 設定參考資料路徑
-    corpus_dict_finance = load_data(source_path_finance)
+    # source_path_finance = os.path.join(args.source_path, "finance")  # 設定參考資料路徑
+    # corpus_dict_finance = load_data(source_path_finance)
 
     with open(os.path.join(args.source_path, "faq/pid_map_content.json"), "rb") as f_s:
         key_to_source_dict = json.load(f_s)  # 讀取參考資料文件
         key_to_source_dict = {
             int(key): value for key, value in key_to_source_dict.items()
         }
+    
+    '''這段是星翰額外加的'''
+    # To retrieve filtered_finance
+    with open(os.path.join(args.source_path, "filtered_finance.json"), "rb") as f_f:
+        corpus_dict_finance = json.load(f_f)
+        corpus_dict_finance = {int(f["index"]): f["text"] for f in corpus_dict_finance["finance"]}
 
     for q_dict in qs_ref["questions"]:
         if q_dict["category"] == "finance":
