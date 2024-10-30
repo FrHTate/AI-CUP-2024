@@ -8,6 +8,8 @@ reference/insurance
 Context Doc
 test.ipynb
 test.py
+image_file.json
+tfidf.csv
 
 __pycache__
 image_file.txt
