@@ -63,13 +63,25 @@ if __name__ == "__main__":
     # 使用argparse解析命令列參數
     parser = argparse.ArgumentParser(description="Process some paths and files.")
     parser.add_argument(
-        "--question_path", type=str, required=True, help="讀取發布題目路徑"
+        "--question_path",
+        type=str,
+        required=False,
+        help="讀取發布題目路徑",
+        default="/home/delic/Desktop/Code/AICup2024/AI-CUP-2024/dataset/preliminary/questions_example.json",
     )  # 問題文件的路徑
     parser.add_argument(
-        "--source_path", type=str, required=True, help="讀取參考資料路徑"
+        "--source_path",
+        type=str,
+        required=False,
+        help="讀取參考資料路徑",
+        default="/home/delic/Desktop/Code/AICup2024/AI-CUP-2024/reference",
     )  # 參考資料的路徑
     parser.add_argument(
-        "--output_path", type=str, required=True, help="輸出符合參賽格式的答案路徑"
+        "--output_path",
+        type=str,
+        required=False,
+        help="輸出符合參賽格式的答案路徑",
+        default="/home/delic/Desktop/Code/AICup2024/AI-CUP-2024/dataset/preliminary/pred_retrieve.json",
     )  # 答案輸出的路徑
 
     args = parser.parse_args()  # 解析參數
