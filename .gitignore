@@ -14,3 +14,5 @@ tfidf.csv
 __pycache__
 image_file.txt
 output.csv
+finance_embeddings.csv
+embeddings
