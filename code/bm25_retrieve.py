@@ -48,7 +48,7 @@ def BM25_retrieve(qs, source, corpus_dict):
     tokenized_corpus = [
         list(jieba.cut_for_search(doc)) for doc in filtered_corpus
     ]  # 將每篇文檔進行分詞
-    bm25 = BM25Okapi(tokenized_corpus)  # 使用BM25演算法建立檢索模型
+    bm25 = BM25Okapi(tokenized_corpus,)  # 使用BM25演算法建立檢索模型
     tokenized_query = list(jieba.cut_for_search(qs))  # 將查詢語句進行分詞
     ans = bm25.get_top_n(
         tokenized_query, list(filtered_corpus), n=1
@@ -63,13 +63,25 @@ if __name__ == "__main__":
     # 使用argparse解析命令列參數
     parser = argparse.ArgumentParser(description="Process some paths and files.")
     parser.add_argument(
-        "--question_path", type=str, required=True, help="讀取發布題目路徑"
+        "--question_path",
+        type=str,
+        required=False,
+        help="讀取發布題目路徑",
+        default="/home/delic/Desktop/Code/AICup2024/AI-CUP-2024/dataset/preliminary/questions_example.json",
     )  # 問題文件的路徑
     parser.add_argument(
-        "--source_path", type=str, required=True, help="讀取參考資料路徑"
+        "--source_path",
+        type=str,
+        required=False,
+        help="讀取參考資料路徑",
+        default="/home/delic/Desktop/Code/AICup2024/AI-CUP-2024/reference",
     )  # 參考資料的路徑
     parser.add_argument(
-        "--output_path", type=str, required=True, help="輸出符合參賽格式的答案路徑"
+        "--output_path",
+        type=str,
+        required=False,
+        help="輸出符合參賽格式的答案路徑",
+        default="/home/delic/Desktop/Code/AICup2024/AI-CUP-2024/dataset/preliminary/pred_retrieve_filtered.json",
     )  # 答案輸出的路徑
 
     args = parser.parse_args()  # 解析參數
@@ -79,19 +91,27 @@ if __name__ == "__main__":
     with open(args.question_path, "rb") as f:
         qs_ref = json.load(f)  # 讀取問題檔案
 
+    '''這段laod finance/*.pdf into corpus_dict_finance'''
+    # source_path_finance = os.path.join(args.source_path, "finance")  # 設定參考資料路徑
+    # corpus_dict_finance = load_data(source_path_finance)
+
+    '''這段load finance_filtered.json into corpus_dict_finance'''
+    # To retrieve filtered_finance
+    with open(os.path.join(args.source_path, "filtered_finance.json"), "rb") as f_f:
+        corpus_dict_finance = json.load(f_f)
+        corpus_dict_finance = {int(f["index"]): f["text"] for f in corpus_dict_finance["finance"]}
+
     source_path_insurance = os.path.join(
         args.source_path, "insurance"
     )  # 設定參考資料路徑
     corpus_dict_insurance = load_data(source_path_insurance)
-
-    source_path_finance = os.path.join(args.source_path, "finance")  # 設定參考資料路徑
-    corpus_dict_finance = load_data(source_path_finance)
 
     with open(os.path.join(args.source_path, "faq/pid_map_content.json"), "rb") as f_s:
         key_to_source_dict = json.load(f_s)  # 讀取參考資料文件
         key_to_source_dict = {
             int(key): value for key, value in key_to_source_dict.items()
         }
+    
 
     for q_dict in qs_ref["questions"]:
         if q_dict["category"] == "finance":

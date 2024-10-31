@@ -1,0 +1,68 @@
+[
+    {
+        "qid": 50,
+        "query": "要保人若於停止效力之日起六個月內提出復效申請，契約效力從何時開始恢復？",
+        "predicted": 555,
+        "ground_truth": 78
+    },
+    {
+        "qid": 56,
+        "query": "國巨2022年第三季關係人交易中，與關聯企業相關的銷貨收入是多少？",
+        "predicted": 226,
+        "ground_truth": 171
+    },
+    {
+        "qid": 67,
+        "query": "在2022年第3季度，瑞昱公司有哪些專利訴訟案件被提起且目前正在處理中？",
+        "predicted": 837,
+        "ground_truth": 1021
+    },
+    {
+        "qid": 79,
+        "query": "和泰車公司在2022年第3季產品出售當期列為銷貨收入之何項？",
+        "predicted": 300,
+        "ground_truth": 65
+    },
+    {
+        "qid": 86,
+        "query": "瑞昱在2023年第3季有關涉於哪些專利訴訟，並且這些案件目前進展如何？",
+        "predicted": 757,
+        "ground_truth": 189
+    },
+    {
+        "qid": 90,
+        "query": "和泰車在2023年第一季度的基本每股盈餘是多少？",
+        "predicted": 761,
+        "ground_truth": 710
+    },
+    {
+        "qid": 93,
+        "query": "中鋼在2022年第1季提供予銀行作為擔保的資產總帳面價值是多少？",
+        "predicted": 321,
+        "ground_truth": 660
+    },
+    {
+        "qid": 97,
+        "query": "在國巨2023年第1季合併綜合損益表中，本期綜合損益總額為多少？",
+        "predicted": 579,
+        "ground_truth": 282
+    },
+    {
+        "qid": 100,
+        "query": "鴻海2022年第1季各部門外部收入分別是多少?",
+        "predicted": 96,
+        "ground_truth": 273
+    },
+    {
+        "qid": 109,
+        "query": "透過哪些步驟可以更新刷臉ID?",
+        "predicted": 580,
+        "ground_truth": 283
+    },
+    {
+        "qid": 135,
+        "query": "誰可以申辦玉山e指信貸",
+        "predicted": 53,
+        "ground_truth": 28
+    }
+]
