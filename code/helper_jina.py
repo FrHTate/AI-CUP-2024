@@ -107,6 +107,7 @@ def compute_reranker_accuracy(
 
     total_correct = 0
     total_queries = 0
+    mismatches = []
 
     for category_queries, category_gt, df, category_name in categories:
         correct = 0
@@ -144,7 +145,15 @@ def compute_reranker_accuracy(
             # Compare the best match ID with the ground truth
             if best_match_id == category_gt[i]:
                 correct += 1
-
+            else:
+                mismatches.append(
+                    {
+                        "qid": total_queries + i + 1,
+                        "query": query_text,
+                        "predicted": int(best_match_id),
+                        "ground_truth": int(category_gt[i]),
+                    }
+                )
         # Print individual accuracy for the category
         accuracy = correct / total if total > 0 else 0
         print(f"Accuracy for {category_name}: {accuracy * 100:.2f}%")
@@ -155,3 +164,6 @@ def compute_reranker_accuracy(
     # Print total accuracy
     total_accuracy = total_correct / total_queries if total_queries > 0 else 0
     print(f"Total Accuracy: {total_accuracy * 100:.2f}%")
+
+    with open("mismatch.json", "w") as f:
+        json.dump(mismatches, f, ensure_ascii=False, indent=4)
