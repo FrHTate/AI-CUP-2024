@@ -1,6 +1,7 @@
 .venv
 
 dataset
+report_1031
 reference/faq
 reference/finance
 reference/insurance
@@ -14,3 +15,5 @@ tfidf.csv
 __pycache__
 image_file.txt
 output.csv
+
+.pdf
