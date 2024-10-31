@@ -8,31 +8,25 @@
     {
         "qid": 56,
         "query": "國巨2022年第三季關係人交易中，與關聯企業相關的銷貨收入是多少？",
-        "predicted": 534,
+        "predicted": 226,
         "ground_truth": 171
     },
     {
         "qid": 67,
         "query": "在2022年第3季度，瑞昱公司有哪些專利訴訟案件被提起且目前正在處理中？",
-        "predicted": 386,
+        "predicted": 837,
         "ground_truth": 1021
     },
     {
-        "qid": 70,
-        "query": "智邦科技股份有限公司2023年第1季的綜合損益總額是多少？",
-        "predicted": 147,
-        "ground_truth": 490
-    },
-    {
-        "qid": 78,
-        "query": "智邦科技股份有限公司在2023年第三季的綜合損益表中，顯示的稅前淨利金額是多少？",
-        "predicted": 642,
-        "ground_truth": 119
+        "qid": 79,
+        "query": "和泰車公司在2022年第3季產品出售當期列為銷貨收入之何項？",
+        "predicted": 300,
+        "ground_truth": 65
     },
     {
         "qid": 86,
         "query": "瑞昱在2023年第3季有關涉於哪些專利訴訟，並且這些案件目前進展如何？",
-        "predicted": 813,
+        "predicted": 757,
         "ground_truth": 189
     },
     {
@@ -46,6 +40,12 @@
         "query": "中鋼在2022年第1季提供予銀行作為擔保的資產總帳面價值是多少？",
         "predicted": 321,
         "ground_truth": 660
+    },
+    {
+        "qid": 97,
+        "query": "在國巨2023年第1季合併綜合損益表中，本期綜合損益總額為多少？",
+        "predicted": 579,
+        "ground_truth": 282
     },
     {
         "qid": 100,

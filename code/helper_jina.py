@@ -32,7 +32,7 @@ def faq_to_df(file):
     return pd.DataFrame(faq_list)
 
 
-def json_to_df(file_path, truncate_size=128, overlap=32):
+def json_to_df(file_path, chunk_size=128, overlap=32):
     with open(file_path, "r") as f:
         data = json.load(f)
     category = list(data.keys())[0]
@@ -51,8 +51,8 @@ def json_to_df(file_path, truncate_size=128, overlap=32):
             text = data[i]["text"]
             label = data[i]["label"]
             index = data[i]["index"]
-            for j in range(0, len(text) - truncate_size + 1, truncate_size - overlap):
-                segments.append(text[j : j + truncate_size])
+            for j in range(0, len(text) - chunk_size + 1, chunk_size - overlap):
+                segments.append(text[j : j + chunk_size] + ". " + label)
                 id.append(int(index))
             segments.append(label)
             id.append(int(index))
@@ -68,18 +68,19 @@ def compute_reranker_accuracy(
     insurance_path,
     finance_path,
     faq_path,
-    truncate_size_i=256,
+    ground_truth_path="/home/S113062628/project/AI-CUP-2024/dataset/preliminary/ground_truths_example.json",
+    chunk_size_i=256,
     overlap_i=32,
-    truncate_size_f=256,
+    chunk_size_f=256,
     overlap_f=32,
+    focus_on_source=True,
 ):
     # Convert JSON to DataFrame with text and id columns for different categories
-    df_insurance, _ = json_to_df(insurance_path, truncate_size_i, overlap_f)
-    df_finance, _ = json_to_df(finance_path, truncate_size_f, overlap_i)
+    df_insurance, _ = json_to_df(insurance_path, chunk_size_i, overlap_i)
+    df_finance, _ = json_to_df(finance_path, chunk_size_f, overlap_f)
     df_faq = faq_to_df(faq_path)
 
-    gt_path = "/home/S113062628/project/AI-CUP-2024/dataset/preliminary/ground_truths_example.json"
-    df_ground_truth = json_to_df(gt_path)
+    df_ground_truth = json_to_df(ground_truth_path)
     ground_truth = df_ground_truth["retrieve"].tolist()
 
     # Load query JSON
@@ -120,8 +121,11 @@ def compute_reranker_accuracy(
             query_text = query["query"]
             source_ids = set(query["source"])
 
-            # Filter the passages based on source IDs
-            relevant_passages = df[df["id"].isin(source_ids)]
+            # Determine which passages to use (source only or all passages)
+            if focus_on_source:
+                relevant_passages = df[df["id"].isin(source_ids)]
+            else:
+                relevant_passages = df
 
             # If there are no relevant passages, skip the query
             if relevant_passages.empty:
@@ -167,3 +171,6 @@ def compute_reranker_accuracy(
 
     with open("mismatch.json", "w") as f:
         json.dump(mismatches, f, ensure_ascii=False, indent=4)
+    print("Mismatches saved to mismatch.json")
+
+    return total_accuracy
