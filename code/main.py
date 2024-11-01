@@ -1,12 +1,18 @@
-from helper_jina import compute_reranker_accuracy
+from helper_jina import jina_retrieve
 import itertools
 
 
-finance_path = "/home/S113062628/project/AI-CUP-2024/reference/finance_summary.json"
+finance_summary_path = (
+    "/home/S113062628/project/AI-CUP-2024/reference/finance_summary.json"
+)
+finance_path = "/home/S113062628/project/AI-CUP-2024/reference/finance.json"
 insurance_path = "/home/S113062628/project/AI-CUP-2024/reference/insurance_summary.json"
 faq_path = "/home/S113062628/project/AI-CUP-2024/reference/faq/pid_map_content.json"
 
-compute_reranker_accuracy(
+topk = 5
+
+
+jina_retrieve(
     insurance_path,
     finance_path,
     faq_path,
@@ -14,4 +20,29 @@ compute_reranker_accuracy(
     overlap_i=32,
     chunk_size_f=256,
     overlap_f=32,
+    summary=False,
+    topk=topk,
 )
+
+
+jina_retrieve(
+    insurance_path,
+    finance_path,
+    faq_path,
+    chunk_size_f=512,
+    overlap_f=32,
+    topk=topk,
+    name="oldl",
+)
+"""
+jina_retrieve(
+    insurance_path,
+    finance_summary_path,
+    faq_path,
+    chunk_size_f=512,
+    overlap_f=32,
+    summary=True,
+    topk=topk,
+    name="newl",
+)
+"""
