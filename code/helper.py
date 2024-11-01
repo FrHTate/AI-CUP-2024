@@ -6,6 +6,7 @@ import pytesseract
 from multiprocessing import Pool
 from tqdm import tqdm
 import json
+from image_preprocessor import pdf_image_label_extractor
 
 
 # extract text from pdf image
@@ -60,22 +61,34 @@ def preprocessor(path):
     for ref in reference:
         ref_path = os.path.join(path, ref)
         index = []
+        labels = []
         texts = []
-
+        i = 0
         pdf_files = [file for file in os.listdir(ref_path) if file.endswith(".pdf")]
         for file_name in tqdm(pdf_files, desc=f"Processing {ref} files"):
             file_path = os.path.join(ref_path, file_name)
             text = read_pdf(file_path)
-            if text.strip() == "":
+            text = text.replace("\n", "").replace("\r", "").replace(" ", "")
+            if text == "":
                 text = read_pdf_image(file_path)
+                text = text.replace("\n", "").replace("\r", "").replace(" ", "")
+                labels.append(pdf_image_label_extractor(file_path)[:50])
+            else:
+                labels.append(text[:50])
 
             # Remove characters that might interfere with JSON parsing
-            text = text.replace("\n", "").replace("\r", "").strip()
             index.append(file_name[:-4])
             texts.append(text)
 
-        data = [{"index": idx, "text": txt} for idx, txt in zip(index, texts)]
-        with open(f"./reference/{ref}.json", "w", encoding="utf-8") as f:
+            # i += 1
+            # if i == 10:
+            #     break
+
+        data = [
+            {"index": idx, "label": lbl, "text": txt}
+            for idx, lbl, txt in zip(index, labels, texts)
+        ]
+        with open(f"./reference/{ref}_test.json", "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
 

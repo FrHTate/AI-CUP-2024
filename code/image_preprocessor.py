@@ -34,11 +34,13 @@ def pdf_image_label_extractor(path):
     width, height = image.size
     image = image.crop((0, 0, width, height // 4))
     # 去除顏色
+    image.save(f"{path[:-4]}_origin.jpg")
     image = remove_color(image)
-    image.save("image.jpg")
+    image.save(f"{path[:-4]}_removed.jpg")
     text = extract_text(image)
     return text
 
 
 if __name__ == "__main__":
-    pdf_image_label_extractor("14.pdf")
+    text = pdf_image_label_extractor("675.pdf")
+    print(text)
