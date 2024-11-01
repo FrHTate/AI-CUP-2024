@@ -2,30 +2,14 @@ import pandas as pd
 import json
 from sklearn.feature_extraction.text import TfidfVectorizer
 import jieba
-
-custom_stop_words = [
-    "之",
-    "於",
-    "在",
-    "與",
-    "為",
-    "並",
-    "的",
-    "是",
-    "上",
-    "及",
-    "年",
-    "有限",
-    "公司",
-    "民國",
-]
+import re
+from tqdm import tqdm
 
 
-ngram_range = (1, 1)
+ngram_range = (1, 2)
 tfidf_vectorizer = TfidfVectorizer(
     ngram_range=ngram_range,
     token_pattern=r"(?u)\b\w+\b",
-    stop_words=custom_stop_words,
 )
 
 with open("reference/finance.json", "r", encoding="utf-8") as f:
@@ -46,16 +30,15 @@ tfidf_df.to_csv("tfidf.csv", index=False)
 removed_percentage = 0.2
 removed_range = int(removed_percentage * len(tfidf_df))
 low_tfidf_set = set(tfidf_df["word"].tail(removed_range))
-low_tfidf_set.update(custom_stop_words)
-# print(low_tfidf_set)
+low_tfidf_set = {word.replace(" ", "") for word in low_tfidf_set}
+print(low_tfidf_set)
 
 
 def remove_low_tfidf(text_list):
     filtered_text = []
-    for text in text_list:
-        words = jieba.lcut(text["text"])
-        filtered_words = [word for word in words if word not in low_tfidf_set]
-        filtered_text.append("".join(filtered_words))
+    pattern = "|".join(low_tfidf_set)
+    for text in tqdm(text_list, desc="Removing low tfidf words:"):
+        filtered_text.append(re.sub(pattern, "", text["text"]))
     return filtered_text
 
 
@@ -73,5 +56,6 @@ if __name__ == "__main__":
         ]
     }
 
-    with open("reference/filtered_finance.json", "w", encoding="utf-8") as f:
+    save_path = f"reference/filtered_finance_{ngram_range[1]}gram_r{int(removed_percentage*10)}%.json"
+    with open(save_path, "w", encoding="utf-8") as f:
         json.dump(ret_json, f, ensure_ascii=False, indent=4)
