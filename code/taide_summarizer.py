@@ -3,7 +3,7 @@ from huggingface_hub import login
 import os
 import json
 
-login("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")
+login()
 
 model_name_or_path = "taide/Llama3-TAIDE-LX-8B-Chat-Alpha1"
 file_dir = os.path.dirname(os.path.realpath(__file__))
