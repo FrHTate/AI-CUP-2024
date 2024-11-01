@@ -1,9 +1,249 @@
 [
     {
+        "qid": 1,
+        "query": "匯款銀行及中間行所收取之相關費用由誰負擔?",
+        "predicted": 14,
+        "ground_truth": 392
+    },
+    {
+        "qid": 2,
+        "query": "本公司應在效力停止日前多少天以書面通知要保人？",
+        "predicted": 606,
+        "ground_truth": 428
+    },
+    {
+        "qid": 3,
+        "query": "「完全失能保險金」的受益人是否可以指定或變更?",
+        "predicted": 476,
+        "ground_truth": 83
+    },
+    {
+        "qid": 4,
+        "query": "本契約內容的變更應經由誰同意並批註？",
+        "predicted": 178,
+        "ground_truth": 186
+    },
+    {
+        "qid": 5,
+        "query": "「基本保額」是指什麼？",
+        "predicted": 279,
+        "ground_truth": 162
+    },
+    {
+        "qid": 6,
+        "query": "要保人或受益人應於知悉本公司應負保險責任之事故後幾日內通知本公司？",
+        "predicted": 275,
+        "ground_truth": 116
+    },
+    {
+        "qid": 8,
+        "query": "要保人在訂立本契約時，是否應對於本公司要保書書面詢問的告知事項據實說明？",
+        "predicted": 244,
+        "ground_truth": 78
+    },
+    {
+        "qid": 9,
+        "query": "受益人故意致被保險人於死或未致死者，會喪失什麼權利？",
+        "predicted": 476,
+        "ground_truth": 62
+    },
+    {
+        "qid": 10,
+        "query": "要保人改為「展期定期保險」後，是否仍適用增值回饋分享金的給付?",
+        "predicted": 32,
+        "ground_truth": 472
+    },
+    {
+        "qid": 11,
+        "query": "保單借款的可借金額上限如何決定？",
+        "predicted": 241,
+        "ground_truth": 7
+    },
+    {
+        "qid": 12,
+        "query": "受益人變更是否須經被保險人同意並通知保險公司?",
+        "predicted": 66,
+        "ground_truth": 526
+    },
+    {
+        "qid": 15,
+        "query": "本契約的解釋原則是什麼？",
+        "predicted": 526,
+        "ground_truth": 536
+    },
+    {
+        "qid": 16,
+        "query": "約定以金融機構轉帳交付第二期以後的分期保險費者，本公司應如何處理未能依約定受領保險費的情況？",
+        "predicted": 327,
+        "ground_truth": 54
+    },
+    {
+        "qid": 18,
+        "query": "滿期保險金是如何計算的？",
+        "predicted": 439,
+        "ground_truth": 184
+    },
+    {
+        "qid": 19,
+        "query": "受益人申領身故保險金或喪葬費用保險金時應檢具哪些文件？",
+        "predicted": 431,
+        "ground_truth": 315
+    },
+    {
+        "qid": 20,
+        "query": "完全失能保險金的計算方式是依據什麼標準進行的？",
+        "predicted": 578,
+        "ground_truth": 292
+    },
+    {
+        "qid": 21,
+        "query": "受益人申領「完全失能保險金」時應檢具哪些文件？",
+        "predicted": 639,
+        "ground_truth": 36
+    },
+    {
+        "qid": 22,
+        "query": "受益人第一次申領分期定期給付保險金時，本公司應於何時給付之？",
+        "predicted": 578,
+        "ground_truth": 614
+    },
+    {
+        "qid": 23,
+        "query": "欠繳保險費或未還款項會如何影響本公司給付保險金等項目的金額？",
+        "predicted": 228,
+        "ground_truth": 224
+    },
+    {
+        "qid": 25,
+        "query": "匯款相關費用由誰負擔？",
+        "predicted": 518,
+        "ground_truth": 4
+    },
+    {
+        "qid": 26,
+        "query": "被保險人的投保年齡以什麼為計算基準？",
+        "predicted": 66,
+        "ground_truth": 147
+    },
+    {
+        "qid": 27,
+        "query": "繳費期間是指什麼？",
+        "predicted": 179,
+        "ground_truth": 171
+    },
+    {
+        "qid": 28,
+        "query": "本公司於同意承保並收取第一期保險費後開始負保險責任，是否正確？",
+        "predicted": 116,
+        "ground_truth": 298
+    },
+    {
+        "qid": 29,
+        "query": "被保險人於本契約有效期間內身故，本公司是否會依本契約約定給付保險金？",
+        "predicted": 236,
+        "ground_truth": 578
+    },
+    {
+        "qid": 30,
+        "query": "要保人要求終止契約時，保險公司應於接到通知後多少時間內償付解約金？",
+        "predicted": 353,
+        "ground_truth": 327
+    },
+    {
+        "qid": 31,
+        "query": "「未滿十五足歲的被保險人在滿十五足歲前死亡，其身故保險金會變更為什麼？」",
+        "predicted": 439,
+        "ground_truth": 10
+    },
+    {
+        "qid": 33,
+        "query": "「被保險人在第四保單年度起，若成為完全失能，保險公司將按什麼金額給付完全失能保險金？」",
+        "predicted": 486,
+        "ground_truth": 434
+    },
+    {
+        "qid": 34,
+        "query": "受益人申領「完全失能保險金」時需要檢具哪些文件？",
+        "predicted": 431,
+        "ground_truth": 442
+    },
+    {
+        "qid": 35,
+        "query": "要保人選擇改為「展期定期保險」當時，本公司將以什麼金額辦理？",
+        "predicted": 207,
+        "ground_truth": 319
+    },
+    {
+        "qid": 36,
+        "query": "要保人的住所有變更時，應以何種方式通知本公司?",
+        "predicted": 63,
+        "ground_truth": 148
+    },
+    {
+        "qid": 37,
+        "query": "本契約內容的變更，或記載事項的增刪，是否需要要保人與本公司雙方書面或其他約定方式同意？",
+        "predicted": 178,
+        "ground_truth": 148
+    },
+    {
+        "qid": 39,
+        "query": "被保險人於同一項手術或特定處置中之同一治療位置，於同一保單年度內接受二次或以上之手術或特定處置治療時，本公司會給付幾次手術暨特定處置醫療保險金？",
+        "predicted": 439,
+        "ground_truth": 29
+    },
+    {
+        "qid": 40,
+        "query": "被保險人於繳費期間內身故，公司如何處理當期已繳付之未滿期保險費？",
+        "predicted": 578,
+        "ground_truth": 591
+    },
+    {
+        "qid": 41,
+        "query": "被保險人若於出院後十四日內因同一疾病或傷害於同一醫院再次住院，保險金給付將如何計算？",
+        "predicted": 40,
+        "ground_truth": 165
+    },
+    {
+        "qid": 43,
+        "query": "契約終止後，本公司應於接到通知後多久內償付解約金？",
+        "predicted": 180,
+        "ground_truth": 325
+    },
+    {
+        "qid": 44,
+        "query": "要保人申請豁免保險費時，需要出具哪些文件？",
+        "predicted": 357,
+        "ground_truth": 440
+    },
+    {
+        "qid": 45,
+        "query": "受益人申領「身故保險金」或喪葬費用保險金時，應檢具哪些文件？",
+        "predicted": 35,
+        "ground_truth": 537
+    },
+    {
+        "qid": 47,
+        "query": "保單年度數是如何計算的?",
+        "predicted": 596,
+        "ground_truth": 620
+    },
+    {
+        "qid": 49,
+        "query": "要保人或受益人交付各款項時，應以何種方式交付？",
+        "predicted": 606,
+        "ground_truth": 482
+    },
+    {
         "qid": 50,
         "query": "要保人若於停止效力之日起六個月內提出復效申請，契約效力從何時開始恢復？",
-        "predicted": 555,
+        "predicted": 365,
         "ground_truth": 78
+    },
+    {
+        "qid": 52,
+        "query": "光寶科技股份有限公司2023年第1季的合併財務報告中，部分非重要子公司未經會計師核閱的資產總額占合併資產總額的百分比是多少？",
+        "predicted": 293,
+        "ground_truth": 918
     },
     {
         "qid": 53,

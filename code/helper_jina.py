@@ -50,10 +50,13 @@ def json_to_df(file_path, chunk_size=128, overlap=32):
         for i in range(len(data)):
             text = data[i]["text"]
             label = data[i]["label"]
+            summary = data[i]["summary"]
             index = data[i]["index"]
             for j in range(0, len(text) - chunk_size + 1, chunk_size - overlap):
                 segments.append(text[j : j + chunk_size] + ". " + label)
                 id.append(int(index))
+            segments.append(summary)
+            id.append(int(index))
             segments.append(label)
             id.append(int(index))
         return pd.DataFrame({"id": id, "text": segments}), category

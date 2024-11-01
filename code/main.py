@@ -3,7 +3,7 @@ import itertools
 
 
 finance_path = "/home/S113062628/project/AI-CUP-2024/reference/finance_summary.json"
-insurance_path = "/home/S113062628/project/AI-CUP-2024/reference/insurance.json"
+insurance_path = "/home/S113062628/project/AI-CUP-2024/reference/insurance_summary.json"
 faq_path = "/home/S113062628/project/AI-CUP-2024/reference/faq/pid_map_content.json"
 
 compute_reranker_accuracy(
