@@ -2,17 +2,26 @@ import json
 import pandas as pd
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from sentence_transformers import CrossEncoder
 import numpy as np
 from tqdm import tqdm
 
+# Load the cross-encoder model for reranking
+cross_encoder = CrossEncoder(
+    "jinaai/jina-reranker-v2-base-multilingual",
+    automodel_args={"torch_dtype": "auto"},
+    trust_remote_code=True,
+)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using device: {device}")
+cross_encoder.model = cross_encoder.model.to(device)
 
 model = AutoModelForSequenceClassification.from_pretrained(
     "jinaai/jina-reranker-v2-base-multilingual",
     torch_dtype="auto",
     trust_remote_code=True,
 )
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Using device: {device}")
 model = model.to(device)
 
 
@@ -82,8 +91,9 @@ def jina_retrieve(
     overlap_f=32,
     focus_on_source=True,
     summary=False,
-    topk=1,
-    name="",
+    topk=5,  # Increase topk for reranking
+    rerank=True,  # Control whether to use reranking
+    name=None,
 ):
     # Convert JSON to DataFrame with text and id columns for different categories
     df_insurance, _ = json_to_df(insurance_path, chunk_size_i, overlap_i, summary)
@@ -154,51 +164,59 @@ def jina_retrieve(
             scores_tensor = torch.tensor(scores, device=device)
 
             # Find the passages with the highest scores up to the threshold
-
             topk_indices = torch.topk(scores_tensor, topk).indices.tolist()
             best_match_ids = relevant_passages.iloc[topk_indices]["id"].tolist()
 
-            # Compare the best match IDs with the ground truth
-            if category_gt[i] in best_match_ids:
+            if rerank:
+                # Rerank using CrossEncoder
+                reranking_pairs = [
+                    (query_text, relevant_passages.iloc[idx]["text"])
+                    for idx in topk_indices
+                ]
+                reranking_scores = cross_encoder.predict(reranking_pairs)
+
+                # Find the best passage after reranking
+                best_rerank_idx = np.argmax(reranking_scores)
+                best_match_id = best_match_ids[best_rerank_idx]
+            else:
+                # Use the best match from the initial ranking
+                best_match_id = best_match_ids[0]
+
+            # Compare the best match ID with the ground truth
+            if category_gt[i] == best_match_id:
                 correct += 1
-                if query["qid"] in [53, 61, 63, 67, 79, 86]:
-                    mismatches.append(
-                        {
-                            "qid": total_queries + i + 1,
-                            "query": query_text,
-                            "predicted": [
-                                {
-                                    "id": int(match_id),
-                                    "score": float(
-                                        scores_tensor[topk_indices[idx]].item()
-                                    ),
-                                }
-                                for idx, match_id in enumerate(best_match_ids)
-                            ],
-                            "top1": int(best_match_ids[0]),
-                            "ground_truth": int(category_gt[i]),
-                        }
-                    )
             else:
                 mismatches.append(
                     {
                         "qid": total_queries + i + 1,
                         "query": query_text,
-                        "predicted": [
-                            {
-                                "id": int(match_id),
-                                "score": float(scores_tensor[topk_indices[idx]].item()),
-                            }
-                            for idx, match_id in enumerate(best_match_ids)
-                        ],
-                        "top1": int(best_match_ids[0]),
+                        "predicted": (
+                            [
+                                {
+                                    "id": int(best_match_ids[idx]),
+                                    "score": float(
+                                        scores_tensor[topk_indices[idx]].item()
+                                    ),
+                                }
+                                for idx in range(topk)
+                            ]
+                            if not rerank
+                            else [
+                                {
+                                    "id": int(best_match_ids[idx]),
+                                    "score": float(reranking_scores[idx]),
+                                }
+                                for idx in range(topk)
+                            ]
+                        ),
+                        "top1": int(best_match_id),
                         "ground_truth": int(category_gt[i]),
                     }
                 )
             predictions.append(
                 {
                     "qid": total_queries + i + 1,
-                    "retrieve": int(best_match_ids[0]),
+                    "retrieve": int(best_match_id),
                 }
             )
 
