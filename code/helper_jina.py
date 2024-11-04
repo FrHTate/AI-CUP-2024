@@ -2,26 +2,17 @@ import json
 import pandas as pd
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from sentence_transformers import CrossEncoder
 import numpy as np
 from tqdm import tqdm
 
-# Load the cross-encoder model for reranking
-cross_encoder = CrossEncoder(
-    "jinaai/jina-reranker-v2-base-multilingual",
-    automodel_args={"torch_dtype": "auto"},
-    trust_remote_code=True,
-)
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Using device: {device}")
-cross_encoder.model = cross_encoder.model.to(device)
 
 model = AutoModelForSequenceClassification.from_pretrained(
     "jinaai/jina-reranker-v2-base-multilingual",
     torch_dtype="auto",
     trust_remote_code=True,
 )
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using device: {device}")
 model = model.to(device)
 
 
@@ -56,21 +47,39 @@ def json_to_df(file_path, chunk_size=128, overlap=32, summary=False):
         df = df.rename(columns={"query": "text"})
         return df, category
 
-    elif category == "finance" or category == "insurance":
+    elif category == "insurance":
         for i in range(len(data)):
             index = data[i]["index"]
             text = data[i]["text"]
             label = data[i]["label"]
             if summary:
-                summary = data[i]["summary"]
-                segments.append(summary)
+                summary_passage = data[i]["summary"]
+                segments.append(summary_passage)
                 id.append(int(index))
             segments.append(label)
             id.append(int(index))
             for j in range(0, len(text) - chunk_size + 1, chunk_size - overlap):
-                segments.append(text[j : j + chunk_size] + ". " + label)
+                segments.append(
+                    text[j : j + chunk_size] + " [標題] " + label + " [/標題]."
+                )
                 id.append(int(index))
-
+        return pd.DataFrame({"id": id, "text": segments}), category
+    elif category == "finance":
+        for i in range(len(data)):
+            index = data[i]["index"]
+            text = data[i]["text"]
+            label = data[i]["label"]
+            if summary:
+                summary_passage = data[i]["summary"]
+                segments.append(summary_passage)
+                id.append(int(index))
+            segments.append(label)
+            id.append(int(index))
+            for j in range(0, len(text) - chunk_size + 1, chunk_size - overlap):
+                segments.append(
+                    "[標題] " + label + " [/標題]. " + text[j : j + chunk_size]
+                )
+                id.append(int(index))
         return pd.DataFrame({"id": id, "text": segments}), category
     elif category == "ground_truths":
         df = pd.DataFrame(data)
@@ -91,9 +100,8 @@ def jina_retrieve(
     overlap_f=32,
     focus_on_source=True,
     summary=False,
-    topk=5,  # Increase topk for reranking
-    rerank=True,  # Control whether to use reranking
-    name=None,
+    topk=1,
+    name="",
 ):
     # Convert JSON to DataFrame with text and id columns for different categories
     df_insurance, _ = json_to_df(insurance_path, chunk_size_i, overlap_i, summary)
@@ -167,76 +175,69 @@ def jina_retrieve(
             topk_indices = torch.topk(scores_tensor, topk).indices.tolist()
             best_match_ids = relevant_passages.iloc[topk_indices]["id"].tolist()
 
-            if rerank:
-                # Rerank using CrossEncoder
-                reranking_pairs = [
-                    (query_text, relevant_passages.iloc[idx]["text"])
-                    for idx in topk_indices
-                ]
-                reranking_scores = cross_encoder.predict(reranking_pairs)
-
-                # Find the best passage after reranking
-                best_rerank_idx = np.argmax(reranking_scores)
-                best_match_id = best_match_ids[best_rerank_idx]
-            else:
-                # Use the best match from the initial ranking
-                best_match_id = best_match_ids[0]
-
-            # Compare the best match ID with the ground truth
-            if category_gt[i] == best_match_id:
+            # Compare the best match IDs with the ground truth
+            if category_gt[i] in best_match_ids:
                 correct += 1
+                if query["qid"] in [63, 64, 79, 86, 93]:
+                    mismatches.append(
+                        {
+                            "qid": total_queries + i + 1,
+                            "query": query_text,
+                            "predicted": [
+                                {
+                                    "id": int(match_id),
+                                    "score": float(
+                                        scores_tensor[topk_indices[idx]].item()
+                                    ),
+                                    "passage": relevant_passages.iloc[
+                                        topk_indices[idx]
+                                    ]["text"],
+                                }
+                                for idx, match_id in enumerate(best_match_ids)
+                            ],
+                            "top1": int(best_match_ids[0]),
+                            "ground_truth": int(category_gt[i]),
+                        }
+                    )
             else:
                 mismatches.append(
                     {
                         "qid": total_queries + i + 1,
                         "query": query_text,
-                        "predicted": (
-                            [
-                                {
-                                    "id": int(best_match_ids[idx]),
-                                    "score": float(
-                                        scores_tensor[topk_indices[idx]].item()
-                                    ),
-                                }
-                                for idx in range(topk)
-                            ]
-                            if not rerank
-                            else [
-                                {
-                                    "id": int(best_match_ids[idx]),
-                                    "score": float(reranking_scores[idx]),
-                                }
-                                for idx in range(topk)
-                            ]
-                        ),
-                        "top1": int(best_match_id),
+                        "predicted": [
+                            {
+                                "id": int(match_id),
+                                "score": float(scores_tensor[topk_indices[idx]].item()),
+                                "passage": relevant_passages.iloc[topk_indices[idx]][
+                                    "text"
+                                ],
+                            }
+                            for idx, match_id in enumerate(best_match_ids)
+                        ],
+                        "top1": int(best_match_ids[0]),
                         "ground_truth": int(category_gt[i]),
                     }
                 )
             predictions.append(
                 {
                     "qid": total_queries + i + 1,
-                    "retrieve": int(best_match_id),
+                    "retrieve": int(best_match_ids[0]),
                 }
             )
 
-        # Print individual accuracy for the category
         accuracy = correct / total if total > 0 else 0
         print(f"Accuracy for {category_name}: {accuracy * 100:.2f}%")
 
         total_correct += correct
         total_queries += total
 
-    # Print total accuracy
     total_accuracy = total_correct / total_queries if total_queries > 0 else 0
     print(f"Total Accuracy: {total_accuracy * 100:.2f}%")
 
     with open(f"mismatch_{name}.json", "w") as f:
         json.dump(mismatches, f, ensure_ascii=False, indent=4)
-    # print("Mismatches saved to mismatch.json")
 
     with open("pred_retrieve.json", "w") as f:
         json.dump({"answers": predictions}, f, ensure_ascii=False, indent=4)
-    # print("Predictions saved to pred_retrieve.json")
 
     return total_accuracy
