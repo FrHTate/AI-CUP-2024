@@ -2,16 +2,26 @@ import json
 import pandas as pd
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from sentence_transformers import CrossEncoder
 import numpy as np
 from tqdm import tqdm
 
+# Load the cross-encoder model for reranking
+cross_encoder = CrossEncoder(
+    "jinaai/jina-reranker-v2-base-multilingual",
+    automodel_args={"torch_dtype": "auto"},
+    trust_remote_code=True,
+)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using device: {device}")
+cross_encoder.model = cross_encoder.model.to(device)
 
 model = AutoModelForSequenceClassification.from_pretrained(
     "jinaai/jina-reranker-v2-base-multilingual",
     torch_dtype="auto",
     trust_remote_code=True,
 )
-device = "cuda" if torch.cuda.is_available() else "cpu"
 model = model.to(device)
 
 
@@ -32,7 +42,7 @@ def faq_to_df(file):
     return pd.DataFrame(faq_list)
 
 
-def json_to_df(file_path, chunk_size=128, overlap=32):
+def json_to_df(file_path, chunk_size=128, overlap=32, summary=False):
     with open(file_path, "r") as f:
         data = json.load(f)
     category = list(data.keys())[0]
@@ -48,14 +58,19 @@ def json_to_df(file_path, chunk_size=128, overlap=32):
 
     elif category == "finance" or category == "insurance":
         for i in range(len(data)):
+            index = data[i]["index"]
             text = data[i]["text"]
             label = data[i]["label"]
-            index = data[i]["index"]
-            for j in range(0, len(text) - chunk_size + 1, chunk_size - overlap):
-                segments.append(text[j : j + chunk_size] + ". " + label)
+            if summary:
+                summary = data[i]["summary"]
+                segments.append(summary)
                 id.append(int(index))
             segments.append(label)
             id.append(int(index))
+            for j in range(0, len(text) - chunk_size + 1, chunk_size - overlap):
+                segments.append(text[j : j + chunk_size] + ". " + label)
+                id.append(int(index))
+
         return pd.DataFrame({"id": id, "text": segments}), category
     elif category == "ground_truths":
         df = pd.DataFrame(data)
@@ -64,41 +79,46 @@ def json_to_df(file_path, chunk_size=128, overlap=32):
         raise ValueError("Invalid category")
 
 
-def compute_reranker_accuracy(
+def jina_retrieve(
     insurance_path,
     finance_path,
     faq_path,
     ground_truth_path="/home/S113062628/project/AI-CUP-2024/dataset/preliminary/ground_truths_example.json",
-    chunk_size_i=256,
+    query_path="/home/S113062628/project/AI-CUP-2024/dataset/preliminary/questions_example.json",
+    chunk_size_i=128,
     overlap_i=32,
     chunk_size_f=256,
     overlap_f=32,
     focus_on_source=True,
+    summary=False,
+    topk=5,  # Increase topk for reranking
+    rerank=True,  # Control whether to use reranking
+    name=None,
 ):
     # Convert JSON to DataFrame with text and id columns for different categories
-    df_insurance, _ = json_to_df(insurance_path, chunk_size_i, overlap_i)
-    df_finance, _ = json_to_df(finance_path, chunk_size_f, overlap_f)
+    df_insurance, _ = json_to_df(insurance_path, chunk_size_i, overlap_i, summary)
+    df_finance, _ = json_to_df(finance_path, chunk_size_f, overlap_f, summary)
     df_faq = faq_to_df(faq_path)
 
-    df_ground_truth = json_to_df(ground_truth_path)
-    ground_truth = df_ground_truth["retrieve"].tolist()
+    with open(ground_truth_path, "r") as f:
+        ground_truth = json.load(f)
 
-    # Load query JSON
-    with open(
-        "/home/S113062628/project/AI-CUP-2024/dataset/preliminary/questions_example.json"
-    ) as f:
+    ground_truth = ground_truth["ground_truths"]
+
+    with open(query_path, "r") as f:
         queries = json.load(f)
 
     queries = queries["questions"]
 
-    # Split queries into categories
-    insurance_queries = queries[:50]
-    finance_queries = queries[50:100]
-    faq_queries = queries[100:150]
+    insurance_queries = [query for query in queries if query["category"] == "insurance"]
+    finance_queries = [query for query in queries if query["category"] == "finance"]
+    faq_queries = [query for query in queries if query["category"] == "faq"]
 
-    insurance_gt = ground_truth[:50]
-    finance_gt = ground_truth[50:100]
-    faq_gt = ground_truth[100:150]
+    insurance_gt = [
+        gt["retrieve"] for gt in ground_truth if gt["category"] == "insurance"
+    ]
+    finance_gt = [gt["retrieve"] for gt in ground_truth if gt["category"] == "finance"]
+    faq_gt = [gt["retrieve"] for gt in ground_truth if gt["category"] == "faq"]
 
     categories = [
         (insurance_queries, insurance_gt, df_insurance, "Insurance"),
@@ -109,6 +129,7 @@ def compute_reranker_accuracy(
     total_correct = 0
     total_queries = 0
     mismatches = []
+    predictions = []
 
     for category_queries, category_gt, df, category_name in categories:
         correct = 0
@@ -129,7 +150,7 @@ def compute_reranker_accuracy(
 
             # If there are no relevant passages, skip the query
             if relevant_passages.empty:
-                continue
+                raise Exception(f"No relevant passages for query {i + 1}")
 
             # Create sentence pairs between the query and each relevant passage
             sentence_pairs = [
@@ -137,27 +158,68 @@ def compute_reranker_accuracy(
             ]
 
             # Compute similarity scores for each sentence pair
-            scores = model.compute_score(sentence_pairs, max_length=1024)
+            scores = model.compute_score(sentence_pairs, max_length=2048)
 
             # Convert the list of scores to a tensor
             scores_tensor = torch.tensor(scores, device=device)
 
-            # Find the passage with the highest score
-            best_match_idx = torch.argmax(scores_tensor).item()
-            best_match_id = relevant_passages.iloc[best_match_idx]["id"]
+            # Find the passages with the highest scores up to the threshold
+            topk_indices = torch.topk(scores_tensor, topk).indices.tolist()
+            best_match_ids = relevant_passages.iloc[topk_indices]["id"].tolist()
+
+            if rerank:
+                # Rerank using CrossEncoder
+                reranking_pairs = [
+                    (query_text, relevant_passages.iloc[idx]["text"])
+                    for idx in topk_indices
+                ]
+                reranking_scores = cross_encoder.predict(reranking_pairs)
+
+                # Find the best passage after reranking
+                best_rerank_idx = np.argmax(reranking_scores)
+                best_match_id = best_match_ids[best_rerank_idx]
+            else:
+                # Use the best match from the initial ranking
+                best_match_id = best_match_ids[0]
 
             # Compare the best match ID with the ground truth
-            if best_match_id == category_gt[i]:
+            if category_gt[i] == best_match_id:
                 correct += 1
             else:
                 mismatches.append(
                     {
                         "qid": total_queries + i + 1,
                         "query": query_text,
-                        "predicted": int(best_match_id),
+                        "predicted": (
+                            [
+                                {
+                                    "id": int(best_match_ids[idx]),
+                                    "score": float(
+                                        scores_tensor[topk_indices[idx]].item()
+                                    ),
+                                }
+                                for idx in range(topk)
+                            ]
+                            if not rerank
+                            else [
+                                {
+                                    "id": int(best_match_ids[idx]),
+                                    "score": float(reranking_scores[idx]),
+                                }
+                                for idx in range(topk)
+                            ]
+                        ),
+                        "top1": int(best_match_id),
                         "ground_truth": int(category_gt[i]),
                     }
                 )
+            predictions.append(
+                {
+                    "qid": total_queries + i + 1,
+                    "retrieve": int(best_match_id),
+                }
+            )
+
         # Print individual accuracy for the category
         accuracy = correct / total if total > 0 else 0
         print(f"Accuracy for {category_name}: {accuracy * 100:.2f}%")
@@ -169,8 +231,12 @@ def compute_reranker_accuracy(
     total_accuracy = total_correct / total_queries if total_queries > 0 else 0
     print(f"Total Accuracy: {total_accuracy * 100:.2f}%")
 
-    with open("mismatch.json", "w") as f:
+    with open(f"mismatch_{name}.json", "w") as f:
         json.dump(mismatches, f, ensure_ascii=False, indent=4)
-    print("Mismatches saved to mismatch.json")
+    # print("Mismatches saved to mismatch.json")
+
+    with open("pred_retrieve.json", "w") as f:
+        json.dump({"answers": predictions}, f, ensure_ascii=False, indent=4)
+    # print("Predictions saved to pred_retrieve.json")
 
     return total_accuracy
