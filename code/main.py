@@ -14,7 +14,7 @@ faq_path = "/home/S113062628/project/AI-CUP-2024/reference/faq/pid_map_content.j
 
 
 jina_retrieve(
-    insurance_path, finance_path, faq_path, chunk_size_f=512, overlap_f=32, topk=4
+    insurance_path, finance_path, faq_path, chunk_size_f=512, overlap_f=32, topk=1
 )
 """
 def remove_english_and_symbols(text):
