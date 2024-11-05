@@ -187,30 +187,13 @@ def jina_retrieve(
             topk_indices = torch.topk(scores_tensor, topk).indices.tolist()
             best_match_ids = relevant_passages.iloc[topk_indices]["id"].tolist()
 
+            # Always store the top 5 scores, regardless of the value of topk
+            top5_indices = torch.topk(scores_tensor, 5).indices.tolist()
+            top5_match_ids = relevant_passages.iloc[top5_indices]["id"].tolist()
+
             # Compare the best match IDs with the ground truth
             if category_gt[i] in best_match_ids:
                 correct += 1
-                if query["qid"] in [64, 90, 93, 100]:
-                    mismatches.append(
-                        {
-                            "qid": total_queries + i + 1,
-                            "query": query_text,
-                            "predicted": [
-                                {
-                                    "id": int(match_id),
-                                    "score": float(
-                                        scores_tensor[topk_indices[idx]].item()
-                                    ),
-                                    "passage": relevant_passages.iloc[
-                                        topk_indices[idx]
-                                    ]["text"],
-                                }
-                                for idx, match_id in enumerate(best_match_ids)
-                            ],
-                            "top1": int(best_match_ids[0]),
-                            "ground_truth": int(category_gt[i]),
-                        }
-                    )
             else:
                 mismatches.append(
                     {
@@ -219,12 +202,12 @@ def jina_retrieve(
                         "predicted": [
                             {
                                 "id": int(match_id),
-                                "score": float(scores_tensor[topk_indices[idx]].item()),
-                                "passage": relevant_passages.iloc[topk_indices[idx]][
+                                "score": float(scores_tensor[top5_indices[idx]].item()),
+                                "passage": relevant_passages.iloc[top5_indices[idx]][
                                     "text"
                                 ],
                             }
-                            for idx, match_id in enumerate(best_match_ids)
+                            for idx, match_id in enumerate(top5_match_ids)
                         ],
                         "top1": int(best_match_ids[0]),
                         "ground_truth": int(category_gt[i]),
