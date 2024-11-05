@@ -100,6 +100,23 @@ def json_to_df(file_path, chunk_size=128, overlap=32, summary=False):
         raise ValueError("Invalid category")
 
 
+def query_rewrite(query):
+    n = [
+        ("1", "一", "1月1日至3月31日"),
+        ("2", "二", "4月1日至6月30日"),
+        ("3", "三", "7月1日至9月30日"),
+        ("4", "四", "10月1日至12月31日"),
+    ]
+    query_rewrite = query
+    for season in n:
+        if f"第{season[0]}季" in query or f"第{season[1]}季" in query:
+            query_rewrite = query.replace(f"第{season[0]}季", season[2]).replace(
+                f"第{season[1]}季", season[2]
+            )
+            break
+    return query_rewrite
+
+
 def jina_retrieve(
     insurance_path,
     finance_path,
@@ -160,6 +177,7 @@ def jina_retrieve(
             tqdm(category_queries, desc=f"Processing Queries for {category_name}")
         ):
             query_text = query["query"]
+            query_text = query_rewrite(query_text)
             source_ids = set(query["source"])
 
             # Determine which passages to use (source only or all passages)
