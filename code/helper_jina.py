@@ -2,10 +2,11 @@ import json
 import pandas as pd
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from sentence_transformers import CrossEncoder
 import numpy as np
 from tqdm import tqdm
 
-
+# Load the initial reranker model
 model = AutoModelForSequenceClassification.from_pretrained(
     "jinaai/jina-reranker-v2-base-multilingual",
     torch_dtype="auto",
@@ -14,6 +15,13 @@ model = AutoModelForSequenceClassification.from_pretrained(
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using device: {device}")
 model = model.to(device)
+
+# Load the cross-encoder model for reranking
+cross_encoder = CrossEncoder(
+    "jinaai/jina-reranker-v2-base-multilingual",
+    automodel_args={"torch_dtype": "auto"},
+    trust_remote_code=True,
+)
 
 
 def faq_to_df(file):
@@ -56,8 +64,8 @@ def json_to_df(file_path, chunk_size=128, overlap=32, summary=False):
                 summary_passage = data[i]["summary"]
                 segments.append(summary_passage)
                 id.append(int(index))
-            segments.append(label)
-            id.append(int(index))
+            # segments.append(label)
+            # id.append(int(index))
             for j in range(0, len(text) - chunk_size + 1, chunk_size - overlap):
                 segments.append(
                     text[j : j + chunk_size] + " [標題] " + label + " [/標題]."
@@ -73,12 +81,16 @@ def json_to_df(file_path, chunk_size=128, overlap=32, summary=False):
                 summary_passage = data[i]["summary"]
                 segments.append(summary_passage)
                 id.append(int(index))
-            segments.append(label)
-            id.append(int(index))
+            # if label != "":
+            # segments.append(label)
+            # id.append(int(index))
             for j in range(0, len(text) - chunk_size + 1, chunk_size - overlap):
-                segments.append(
-                    "[標題] " + label + " [/標題]. " + text[j : j + chunk_size]
-                )
+                if label == "":
+                    segments.append(text[j : j + chunk_size])
+                else:
+                    segments.append(
+                        "[標題] " + label + " [/標題]. " + text[j : j + chunk_size]
+                    )
                 id.append(int(index))
         return pd.DataFrame({"id": id, "text": segments}), category
     elif category == "ground_truths":
@@ -166,7 +178,7 @@ def jina_retrieve(
             ]
 
             # Compute similarity scores for each sentence pair
-            scores = model.compute_score(sentence_pairs, max_length=2048)
+            scores = model.compute_score(sentence_pairs, max_length=1024)
 
             # Convert the list of scores to a tensor
             scores_tensor = torch.tensor(scores, device=device)
@@ -178,7 +190,7 @@ def jina_retrieve(
             # Compare the best match IDs with the ground truth
             if category_gt[i] in best_match_ids:
                 correct += 1
-                if query["qid"] in [63, 64, 79, 86, 93]:
+                if query["qid"] in [64, 90, 93, 100]:
                     mismatches.append(
                         {
                             "qid": total_queries + i + 1,
@@ -222,6 +234,129 @@ def jina_retrieve(
                 {
                     "qid": total_queries + i + 1,
                     "retrieve": int(best_match_ids[0]),
+                }
+            )
+
+        accuracy = correct / total if total > 0 else 0
+        print(f"Accuracy for {category_name}: {accuracy * 100:.2f}%")
+
+        total_correct += correct
+        total_queries += total
+
+    total_accuracy = total_correct / total_queries if total_queries > 0 else 0
+    print(f"Total Accuracy: {total_accuracy * 100:.2f}%")
+
+    with open(f"mismatch_{name}.json", "w") as f:
+        json.dump(mismatches, f, ensure_ascii=False, indent=4)
+
+    with open("pred_retrieve.json", "w") as f:
+        json.dump({"answers": predictions}, f, ensure_ascii=False, indent=4)
+
+    return total_accuracy
+
+
+def jina_cross_encoder(
+    insurance_path,
+    finance_path,
+    faq_path,
+    ground_truth_path="/home/S113062628/project/AI-CUP-2024/dataset/preliminary/ground_truths_example.json",
+    query_path="/home/S113062628/project/AI-CUP-2024/dataset/preliminary/questions_example.json",
+    chunk_size_i=128,
+    overlap_i=32,
+    chunk_size_f=256,
+    overlap_f=32,
+    focus_on_source=True,
+    summary=False,
+    topk=1,
+    name="",
+):
+    # Convert JSON to DataFrame with text and id columns for different categories
+    df_insurance, _ = json_to_df(insurance_path, chunk_size_i, overlap_i, summary)
+    df_finance, _ = json_to_df(finance_path, chunk_size_f, overlap_f, summary)
+    df_faq = faq_to_df(faq_path)
+
+    with open(ground_truth_path, "r") as f:
+        ground_truth = json.load(f)
+
+    ground_truth = ground_truth["ground_truths"]
+
+    with open(query_path, "r") as f:
+        queries = json.load(f)
+
+    queries = queries["questions"]
+
+    insurance_queries = [query for query in queries if query["category"] == "insurance"]
+    finance_queries = [query for query in queries if query["category"] == "finance"]
+    faq_queries = [query for query in queries if query["category"] == "faq"]
+
+    insurance_gt = [
+        gt["retrieve"] for gt in ground_truth if gt["category"] == "insurance"
+    ]
+    finance_gt = [gt["retrieve"] for gt in ground_truth if gt["category"] == "finance"]
+    faq_gt = [gt["retrieve"] for gt in ground_truth if gt["category"] == "faq"]
+
+    categories = [
+        (insurance_queries, insurance_gt, df_insurance, "Insurance"),
+        (finance_queries, finance_gt, df_finance, "Finance"),
+        (faq_queries, faq_gt, df_faq, "FAQ"),
+    ]
+
+    total_correct = 0
+    total_queries = 0
+    mismatches = []
+    predictions = []
+
+    for category_queries, category_gt, df, category_name in categories:
+        correct = 0
+        total = len(category_queries)
+
+        # Iterate through each query with tqdm for progress visualization
+        for i, query in enumerate(
+            tqdm(category_queries, desc=f"Processing Queries for {category_name}")
+        ):
+            query_text = query["query"]
+            source_ids = set(query["source"])
+
+            # Determine which passages to use (source only or all passages)
+            if focus_on_source:
+                relevant_passages = df[df["id"].isin(source_ids)]
+            else:
+                relevant_passages = df
+
+            # If there are no relevant passages, skip the query
+            if relevant_passages.empty:
+                continue
+
+            # Create sentence pairs between the query and each relevant passage
+            sentence_pairs = [
+                [query_text, passage] for passage in relevant_passages["text"]
+            ]
+
+            # Compute similarity scores for each sentence pair
+            scores = cross_encoder.predict(
+                sentence_pairs, convert_to_tensor=True
+            ).tolist()
+
+            # Find the passage with the highest score
+            best_match_idx = np.argmax(scores)
+            best_match_id = relevant_passages.iloc[best_match_idx]["id"]
+
+            # Compare the best match ID with the ground truth
+            if best_match_id == category_gt[i]:
+                correct += 1
+            else:
+                mismatches.append(
+                    {
+                        "qid": total_queries + i + 1,
+                        "query": query_text,
+                        "predicted": int(best_match_id),
+                        "ground_truth": int(category_gt[i]),
+                    }
+                )
+            predictions.append(
+                {
+                    "qid": total_queries + i + 1,
+                    "retrieve": int(best_match_id),
                 }
             )
 
