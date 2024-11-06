@@ -117,6 +117,23 @@ def query_rewrite(query):
     return query_rewrite
 
 
+def passage_rewrite(passage):
+    n = [
+        ("1", "一", "1月1日至3月31日"),
+        ("2", "二", "4月1日至6月30日"),
+        ("3", "三", "7月1日至9月30日"),
+        ("4", "四", "10月1日至12月31日"),
+    ]
+    passage_rewrite = passage
+    for season in n:
+        if f"第{season[0]}季" in passage or f"第{season[1]}季" in passage:
+            passage_rewrite = passage.replace(f"第{season[0]}季", season[2]).replace(
+                f"第{season[1]}季", season[2]
+            )
+            break
+    return passage_rewrite
+
+
 def jina_retrieve(
     insurance_path,
     finance_path,
