@@ -117,6 +117,23 @@ def query_rewrite(query):
     return query_rewrite
 
 
+def passage_rewrite(passage):
+    n = [
+        ("1", "一", "1月1日至3月31日"),
+        ("2", "二", "4月1日至6月30日"),
+        ("3", "三", "7月1日至9月30日"),
+        ("4", "四", "10月1日至12月31日"),
+    ]
+    passage_rewrite = passage
+    for season in n:
+        if f"第{season[0]}季" in passage or f"第{season[1]}季" in passage:
+            passage_rewrite = passage.replace(f"第{season[0]}季", season[2]).replace(
+                f"第{season[1]}季", season[2]
+            )
+            break
+    return passage_rewrite
+
+
 def jina_retrieve(
     insurance_path,
     finance_path,
@@ -146,6 +163,7 @@ def jina_retrieve(
         queries = json.load(f)
 
     queries = queries["questions"]
+    queries = query_rewrite(queries)
 
     insurance_queries = [query for query in queries if query["category"] == "insurance"]
     finance_queries = [query for query in queries if query["category"] == "finance"]
@@ -177,7 +195,6 @@ def jina_retrieve(
             tqdm(category_queries, desc=f"Processing Queries for {category_name}")
         ):
             query_text = query["query"]
-            query_text = query_rewrite(query_text)
             source_ids = set(query["source"])
 
             # Determine which passages to use (source only or all passages)
@@ -260,8 +277,8 @@ def jina_cross_encoder(
     insurance_path,
     finance_path,
     faq_path,
-    ground_truth_path="/home/S113062628/project/AI-CUP-2024/dataset/preliminary/ground_truths_example.json",
-    query_path="/home/S113062628/project/AI-CUP-2024/dataset/preliminary/questions_example.json",
+    ground_truth_path="/home/delic/Desktop/Code/AICup2024/AI-CUP-2024/dataset/preliminary/ground_truths_example.json",
+    query_path="/home/delic/Desktop/Code/AICup2024/AI-CUP-2024/dataset/preliminary/questions_example.json",
     chunk_size_i=128,
     overlap_i=32,
     chunk_size_f=256,
@@ -377,3 +394,196 @@ def jina_cross_encoder(
         json.dump({"answers": predictions}, f, ensure_ascii=False, indent=4)
 
     return total_accuracy
+
+
+# topk目前只能1, chunk_size目前只能1024
+def jina_cross_encoder_doc(
+    insurance_path,
+    finance_path,
+    faq_path,
+    ground_truth_path="/home/S112062627/Code/AI-CUP-2024/dataset/preliminary/ground_truths_example.json",
+    query_path="/home/S112062627/Code/AI-CUP-2024/dataset/preliminary/questions_example.json",
+    chunk_size_i=128,
+    overlap_i=32,
+    chunk_size_f=256,
+    overlap_f=32,
+    focus_on_source=True,
+    summary=False,
+    topk=1,
+    name="",
+):
+    # Convert JSON to DataFrame with text and id columns for different categories
+    """
+    df_insurance, _ = json_to_df(insurance_path, chunk_size_i, overlap_i, summary)
+    df_finance, _ = json_to_df(finance_path, chunk_size_f, overlap_f, summary)
+    """
+    df_insurance = pd.DataFrame(columns=["id", "text"])
+    df_finance = pd.DataFrame(columns=["id", "text"])
+    df_faq = faq_to_df(faq_path)
+
+    id = []
+    text = []
+    with open(insurance_path, "r") as f:
+        data = json.load(f)
+    for doc in data["insurance"]:
+        id.append(int(doc["index"]))
+        text.append(doc["text"])
+    df_insurance["id"] = id
+    df_insurance["text"] = text
+
+    id = []
+    text = []
+    with open(finance_path, "r") as f:
+        data = json.load(f)
+    for doc in data["finance"]:
+        id.append(int(doc["index"]))
+        text.append(doc["text"])
+    df_finance["id"] = id
+    df_finance["text"] = text
+
+    with open(ground_truth_path, "r") as f:
+        ground_truth = json.load(f)
+
+    ground_truth = ground_truth["ground_truths"]
+
+    with open(query_path, "r") as f:
+        queries = json.load(f)
+
+    queries = queries["questions"]
+
+    insurance_queries = [query for query in queries if query["category"] == "insurance"]
+    finance_queries = [query for query in queries if query["category"] == "finance"]
+    faq_queries = [query for query in queries if query["category"] == "faq"]
+
+    insurance_gt = [
+        gt["retrieve"] for gt in ground_truth if gt["category"] == "insurance"
+    ]
+    finance_gt = [gt["retrieve"] for gt in ground_truth if gt["category"] == "finance"]
+    faq_gt = [gt["retrieve"] for gt in ground_truth if gt["category"] == "faq"]
+
+    categories = [
+        (insurance_queries, insurance_gt, df_insurance, "Insurance"),
+        (finance_queries, finance_gt, df_finance, "Finance"),
+        (faq_queries, faq_gt, df_faq, "FAQ"),
+    ]
+
+    total_correct = 0
+    total_queries = 0
+    mismatches = []
+    predictions = []
+
+    for category_queries, category_gt, df, category_name in categories:
+        correct = 0
+        total = len(category_queries)
+
+        if category_name == "Insurance":
+            chunk_size = chunk_size_i
+            overlap = overlap_i
+        elif category_name == "Finance":
+            chunk_size = chunk_size_f
+            overlap = overlap_f
+        elif category_name == "FAQ":
+            chunk_size = 1024  # default value for jina reranker
+            overlap = 80  # default value for jina reranker
+
+        # Iterate through each query with tqdm for progress visualization
+        for i, query in enumerate(
+            tqdm(category_queries, desc=f"Processing Queries for {category_name}")
+        ):
+            query_text = query["query"]
+            source_ids = set(query["source"])
+            """
+            # Determine which passages to use (source only or all passages)
+            if focus_on_source:
+                relevant_passages = df[df["id"].isin(source_ids)]
+            else:
+                relevant_passages = df
+
+            # If there are no relevant passages, skip the query
+            if relevant_passages.empty:
+                continue
+            
+            # Create sentence pairs between the query and each relevant passage
+            sentence_pairs = [
+                [query_text, passage] for passage in relevant_passages["text"]
+            ]
+
+            # Compute similarity scores for each sentence pair
+            scores = cross_encoder.predict(
+                sentence_pairs, convert_to_tensor=True
+            ).tolist()
+
+            # Find the passage with the highest score
+            best_match_idx = np.argmax(scores)
+            best_match_id = relevant_passages.iloc[best_match_idx]["id"]
+            """
+            if focus_on_source:
+                relevant_docs = df[df["id"].isin(source_ids)]
+                # print(relevant_docs)
+            else:
+                relevant_docs = df
+
+            if relevant_docs.empty:
+                continue
+
+            docs_candidates = relevant_docs["text"].tolist()
+
+            result = model.rerank(
+                query_text,
+                docs_candidates,
+                max_query_length=chunk_size // 2,  # at most half of max_query_length
+                max_length=chunk_size,
+                overlap=overlap,
+                top_n=topk,
+            )
+
+            best_match_id = relevant_docs.iloc[result[0]["index"]]["id"]
+
+            # Compare the best match ID with the ground truth
+            if best_match_id == category_gt[i]:
+                correct += 1
+            else:
+                mismatches.append(
+                    {
+                        "qid": total_queries + i + 1,
+                        "query": query_text,
+                        "predicted": int(best_match_id),
+                        "ground_truth": int(category_gt[i]),
+                    }
+                )
+            predictions.append(
+                {
+                    "qid": total_queries + i + 1,
+                    "retrieve": int(best_match_id),
+                }
+            )
+
+        accuracy = correct / total if total > 0 else 0
+        print(f"Accuracy for {category_name}: {accuracy * 100:.2f}%")
+
+        total_correct += correct
+        total_queries += total
+
+    total_accuracy = total_correct / total_queries if total_queries > 0 else 0
+    print(f"Total Accuracy: {total_accuracy * 100:.2f}%")
+
+    with open(f"mismatch_{name}.json", "w") as f:
+        json.dump(mismatches, f, ensure_ascii=False, indent=4)
+
+    with open("pred_retrieve.json", "w") as f:
+        json.dump({"answers": predictions}, f, ensure_ascii=False, indent=4)
+
+    return total_accuracy
+
+
+if __name__ == "__main__":
+    jina_cross_encoder_doc(
+        insurance_path="/home/S112062627/Code/AI-CUP-2024/reference/insurance.json",
+        finance_path="/home/S112062627/Code/AI-CUP-2024/reference/finance_artificial.json",
+        faq_path="/home/S112062627/Code/AI-CUP-2024/reference/faq/pid_map_context.json",
+        chunk_size_i=128,
+        overlap_i=32,
+        chunk_size_f=256,
+        overlap_f=32,
+        focus_on_source=True,
+    )
