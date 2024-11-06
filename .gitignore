@@ -1,10 +1,11 @@
 .venv
 
 dataset
-report_1031
+report_*
 reference/faq
 reference/finance
 reference/insurance
+/reference/finance_test.json
 
 Context Doc
 test.ipynb
@@ -12,6 +13,7 @@ test.py
 image_file.json
 tfidf.csv
 
+code/__pycache__
 __pycache__
 image_file.txt
 output.csv
@@ -19,7 +21,8 @@ finance_embeddings.csv
 embeddings
 flash_attn-2.6.3+cu123torch2.4cxx11abiTRUE-cp311-cp311-linux_x86_64.whl
 
-.pdf
+*.pdf
+*.jpg
 missmatch
 code/main.py
 code/retrievers.py
