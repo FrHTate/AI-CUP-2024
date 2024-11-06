@@ -163,6 +163,7 @@ def jina_retrieve(
         queries = json.load(f)
 
     queries = queries["questions"]
+    queries = query_rewrite(queries)
 
     insurance_queries = [query for query in queries if query["category"] == "insurance"]
     finance_queries = [query for query in queries if query["category"] == "finance"]
