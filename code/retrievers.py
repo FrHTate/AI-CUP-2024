@@ -7,9 +7,8 @@ import torch
 from transformers import AutoModelForSequenceClassification
 
 
-def BM25_retrieve(
-    query={"1by1", "full"}, corpus={"catbycat", "full"}, tokenizer="jieba", top_n=5
-):
+# TODO: stop recieve source, and recieve query={"1by1", "full"}, corpus={"cbyc", "full"}
+def BM25_retrieve(query, source, corpus, tokenizer="jieba", top_n=5):
     source_corpus = corpus[corpus["id"].isin(source)]
 
     if tokenizer == "jieba":
@@ -37,4 +36,9 @@ def BM25_retrieve(
     )
 
 
-# def jina_retrieve(query, source, corpus, top_n=5, chunk={}):
+""" 
+TODO:
+if chunk["activate"]: do jina_retirever
+else: do jina_cross_encoder_doc
+"""
+# def jina_retrieve(query, source, corpus, top_n=5, chunk={"activate": False, "chunk_size": None, "overlap_size": None}):
