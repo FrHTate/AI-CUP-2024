@@ -24,6 +24,3 @@ flash_attn-2.6.3+cu123torch2.4cxx11abiTRUE-cp311-cp311-linux_x86_64.whl
 *.pdf
 *.jpg
 missmatch
-code/main.py
-code/retrievers.py
-code/data_preprocesser.py

@@ -1,4 +1,18 @@
-pdfplumber
+# pdfplumber
+# jieba
 tqdm
 rank_bm25
-jieba
+numpy
+pandas
+
+# for ckiptagger
+tensorflow-gpu
+# tf-keras
+gdown
+ckiptagger
+
+# for jina
+torch
+transformers
+# sentence_transformers
+tqdm
