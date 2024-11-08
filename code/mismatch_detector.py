@@ -1,4 +1,5 @@
 import json
+import os
 
 """
 # input.json
@@ -29,7 +30,7 @@ import json
 
 
 def set_category():
-    return [0, 2, 4]
+    return [0, 6, 12]
 
 
 # save -> mismatched.json, # each categories mismatched
@@ -42,15 +43,19 @@ def mismatch_detector(path_x: str, path_y: str) -> float:
 
         mismatched = []
         count = [0, 0, 0]
+        mismatched_qid = [[], [], []]
         for ans_x, ans_y in zip(data_x, data_y):
             if ans_x["retrieve"] != ans_y["retrieve"]:
                 qid = ans_x["qid"]
                 if categories[0] <= qid < categories[1]:
                     count[0] += 1
+                    mismatched_qid[0].append(qid)
                 elif categories[1] <= qid < categories[2]:
                     count[1] += 1
+                    mismatched_qid[1].append(qid)
                 else:
                     count[2] += 1
+                    mismatched_qid[2].append(qid)
 
                 mismatched.append(
                     {
@@ -63,12 +68,16 @@ def mismatch_detector(path_x: str, path_y: str) -> float:
                 )
 
         print("Total mismatched in each category:", count)
+        print("Mistachted qid in cat[0]: ", mismatched_qid[0])
+        print("Mistachted qid in cat[1]: ", mismatched_qid[1])
+        print("Mistachted qid in cat[2]: ", mismatched_qid[2])
         with open("mismatched.json", "w") as f:
             json.dump(mismatched, f, ensure_ascii=False, indent=4)
 
 
 if __name__ == "__main__":
+    path = os.path.dirname(__file__)
     mismatch_detector(
-        "/home/S113062615/AI-CUP-2024/results/inputs1.json",
-        "/home/S113062615/AI-CUP-2024/results/inputs2.json",
+        os.path.join(path, "../results/inputs1.json"),
+        os.path.join(path, "../results/inputs2.json"),
     )
