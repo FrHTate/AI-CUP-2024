@@ -6,6 +6,8 @@ import os
 import data_preprocesser as dp
 import retrievers as rt
 
+# import evaluation
+
 # 1-1. Set paths
 path_to_folders = "/home/S112062627/Code/AI-CUP-2024"
 paths = {
@@ -22,7 +24,7 @@ paths = {
 # If we don't want to chunk, just set "activate" to False
 # Each value in top_k sould be either "full" or int
 chunking = {
-    "activate": True,
+    "activate": False,
     "chunk_size": {"insurance": 128, "finance": 256, "jina_default": 1024},
     "overlap_size": {"insurance": 32, "finance": 32, "jina_default": 80},
 }
@@ -74,8 +76,6 @@ df_BM25_result = rt.BM25_retrieve(
 )
 
 print(df_BM25_result)
-
-
 # 4. (Optional) Hybrid
 
 # 5. Output the result
@@ -85,6 +85,7 @@ print(df_BM25_result)
 ground_truths = dp.load_ground_truths(
     os.path.join(path_to_folders, "dataset/preliminary/ground_truths_example.json")
 )
+
 
 correct_jina = {"insurance": 0, "finance": 0, "faq": 0}
 correct_BM25 = {"insurance": 0, "finance": 0, "faq": 0}

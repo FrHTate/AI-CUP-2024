@@ -3,8 +3,8 @@ import pandas as pd
 from tqdm import tqdm
 
 # For BM25
+# from ckiptagger import WS
 import jieba
-from ckiptagger import WS
 from rank_bm25 import BM25Okapi
 
 # For Jina
@@ -91,7 +91,7 @@ def jina_retrieve(
         else:
             raise ValueError("Missing category")
 
-        if not chunking:  # Use rerank function in Jina for each document
+        if not chunking["activate"]:  # Use rerank function in Jina for each document
             if query["category"] == "insurance":
                 chunk_size = chunking["chunk_size"]["insurance"]
                 overlap_size = chunking["overlap_size"]["insurance"]
@@ -99,6 +99,7 @@ def jina_retrieve(
             elif query["category"] == "finance":
                 chunk_size = chunking["chunk_size"]["finance"]
                 overlap_size = chunking["overlap_size"]["finance"]
+
             else:  # Default, for faq
                 chunk_size = chunking["chunk_size"]["jina_default"]
                 overlap_size = chunking["overlap_size"]["jina_default"]
@@ -115,7 +116,7 @@ def jina_retrieve(
                 top_n=top_k,
             )
 
-            id_list.append([doc["index"] for doc in result])
+            id_list.append([source_corpus.iloc[doc["index"]]["id"] for doc in result])
             text_list.append([doc["document"] for doc in result])
             score_list.append([doc["relevance_score"] for doc in result])
 
