@@ -9,11 +9,11 @@ import retrievers as rt
 # import evaluation
 
 # 1-1. Set paths
-path_to_folders = "/home/S112062627/Code/AI-CUP-2024"
+path_to_folders = "/home/S113062628/project/AI-CUP-2024/"
 paths = {
     "insurance": os.path.join(path_to_folders, "reference/insurance.json"),
-    "finance": os.path.join(path_to_folders, "reference/finance_artificial.json"),
-    "faq": os.path.join(path_to_folders, "reference/faq/pid_map_context.json"),
+    "finance": os.path.join(path_to_folders, "reference/1107copy.json"),
+    "faq": os.path.join(path_to_folders, "reference/faq/pid_map_content.json"),
     "query": os.path.join(
         path_to_folders, "dataset/preliminary/questions_example.json"
     ),
@@ -24,7 +24,7 @@ paths = {
 # If we don't want to chunk, just set "activate" to False
 # Each value in top_k sould be either "full" or int
 chunking = {
-    "activate": False,
+    "activate": True,
     "chunk_size": {"insurance": 128, "finance": 256, "jina_default": 1024},
     "overlap_size": {"insurance": 32, "finance": 32, "jina_default": 80},
 }
