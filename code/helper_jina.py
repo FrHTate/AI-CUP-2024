@@ -1,6 +1,7 @@
 import json
 import pandas as pd
 import torch
+import re
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from sentence_transformers import CrossEncoder
 import numpy as np
@@ -22,6 +23,64 @@ cross_encoder = CrossEncoder(
     automodel_args={"torch_dtype": "auto"},
     trust_remote_code=True,
 )
+
+
+def chinese_to_arabic(chinese_numeral):
+    chinese_numeral_map = {
+        "零": 0,
+        "一": 1,
+        "二": 2,
+        "三": 3,
+        "四": 4,
+        "五": 5,
+        "六": 6,
+        "七": 7,
+        "八": 8,
+        "九": 9,
+        "十": 10,
+    }
+    result = 0
+
+    if "十" in chinese_numeral:
+        parts = chinese_numeral.split("十")
+        if parts[0] == "":
+            result += 10
+        else:
+            result += chinese_numeral_map[parts[0]] * 10
+        if len(parts) > 1 and parts[1] != "":
+            result += chinese_numeral_map[parts[1]]
+    else:
+        for char in chinese_numeral:
+            result = result * 10 + chinese_numeral_map[char]
+
+    return result
+
+
+def convert_text_dates(text):
+    # Convert 民國 (ROC year) to Gregorian year only for three-digit years,
+    # ensuring not to convert already existing four-digit Gregorian years.
+    text = re.sub(r"(?<!\d)(\d{3})年", lambda m: f"{int(m.group(1)) + 1911}年", text)
+
+    # Convert fully Chinese representation of dates to Arabic numerals
+    text = re.sub(
+        r"([〇一二三四五六七八九十]+)年([〇一二三四五六七八九十]+)月([〇一二三四五六七八九十]+)日",
+        lambda m: f"{chinese_to_arabic(m.group(1)) + 1911}年{chinese_to_arabic(m.group(2))}月{chinese_to_arabic(m.group(3))}日",
+        text,
+    )
+
+    text = re.sub(
+        r"([〇一二三四五六七八九十]+)年([〇一二三四五六七八九十]+)月",
+        lambda m: f"{chinese_to_arabic(m.group(1)) + 1911}年{chinese_to_arabic(m.group(2))}月",
+        text,
+    )
+
+    text = re.sub(
+        r"([一二三四五六七八九十]+)月([〇一二三四五六七八九十]+)日",
+        lambda m: f"{chinese_to_arabic(m.group(1))}月{chinese_to_arabic(m.group(2))}日",
+        text,
+    )
+
+    return text
 
 
 def faq_to_df(file):
@@ -68,7 +127,9 @@ def json_to_df(file_path, chunk_size=128, overlap=32, summary=False):
             # id.append(int(index))
             for j in range(0, len(text) - chunk_size + 1, chunk_size - overlap):
                 segments.append(
-                    text[j : j + chunk_size] + " [標題] " + label + " [/標題]."
+                    passage_rewrite(
+                        text[j : j + chunk_size] + " [標題] " + label + " [/標題]."
+                    )
                 )
                 id.append(int(index))
         return pd.DataFrame({"id": id, "text": segments}), category
@@ -86,10 +147,12 @@ def json_to_df(file_path, chunk_size=128, overlap=32, summary=False):
             # id.append(int(index))
             for j in range(0, len(text) - chunk_size + 1, chunk_size - overlap):
                 if label == "":
-                    segments.append(text[j : j + chunk_size])
+                    segments.append(passage_rewrite(text[j : j + chunk_size]))
                 else:
                     segments.append(
-                        "[標題] " + label + " [/標題]. " + text[j : j + chunk_size]
+                        passage_rewrite(
+                            "[標題] " + label + " [/標題]. " + text[j : j + chunk_size]
+                        )
                     )
                 id.append(int(index))
         return pd.DataFrame({"id": id, "text": segments}), category
@@ -101,11 +164,16 @@ def json_to_df(file_path, chunk_size=128, overlap=32, summary=False):
 
 
 def query_rewrite(query):
+    # years = re.findall(r"(\d{4})年", query)
+    # if years:
+    #     years = years[0]
+    # else:
+    #     years = ""
     n = [
-        ("1", "一", "1月1日至3月31日"),
-        ("2", "二", "4月1日至6月30日"),
-        ("3", "三", "7月1日至9月30日"),
-        ("4", "四", "10月1日至12月31日"),
+        ("1", "一", f"Q1"),
+        ("2", "二", f"Q2"),
+        ("3", "三", f"Q3"),
+        ("4", "四", f"Q4"),
     ]
     query_rewrite = query
     for season in n:
@@ -113,24 +181,61 @@ def query_rewrite(query):
             query_rewrite = query.replace(f"第{season[0]}季", season[2]).replace(
                 f"第{season[1]}季", season[2]
             )
-            break
+
+    query_rewrite = convert_text_dates(query_rewrite)
+
+    company_names = {
+        # "聯發科": "聯發科技股份有限公司",
+        "台化": "台灣化學纖維股份有限公司",
+        # "台達電": "台達電子工業股份有限公司",
+        "台泥": "台灣水泥股份有限公司",
+        # "華碩": "華碩電腦股份有限公司",
+        # "瑞昱": "瑞昱半導體股份有限公司",
+        # "長榮": "長榮海運股份有限公司",
+        "聯電": "聯華電子股份有限公司",
+        # "智邦": "智邦科技股份有限公司",
+        # "和泰汽車": "和泰汽車股份有限公司",
+        "中鋼": "中國鋼鐵股份有限公司",
+        # "鴻海": "鴻海精密工業股份有限公司",
+        # "亞德客": "亞德客國際集團及其子公司",
+        # "統一企業": "統一企業股份有限公司",
+        # "國巨": "國巨股份有限公司",
+        # "研華": "研華股份有限公司",
+        # "中華電信": "中華電信股份有限公司",
+        # "光寶": "光寶科技股份有限公司",
+        # "台積電": "台灣積體電路製造股份有限公司",
+        # "台永電": "台灣永電股份有限公司",
+        # "合作金庫": "合作金庫商業銀行股份有限公司",
+    }
+
+    for abbr, full_name in company_names.items():
+        if abbr in query_rewrite and full_name not in query_rewrite:
+            query_rewrite = query_rewrite.replace(abbr, f"{abbr}({full_name})")
+
     return query_rewrite
 
 
 def passage_rewrite(passage):
     n = [
-        ("1", "一", "1月1日至3月31日"),
-        ("2", "二", "4月1日至6月30日"),
-        ("3", "三", "7月1日至9月30日"),
-        ("4", "四", "10月1日至12月31日"),
+        ("1", "一", f"Q1"),
+        ("2", "二", f"Q2"),
+        ("3", "三", f"Q3"),
+        ("4", "四", f"Q4"),
     ]
     passage_rewrite = passage
     for season in n:
         if f"第{season[0]}季" in passage or f"第{season[1]}季" in passage:
-            passage_rewrite = passage.replace(f"第{season[0]}季", season[2]).replace(
-                f"第{season[1]}季", season[2]
-            )
-            break
+            passage_rewrite = passage_rewrite.replace(
+                f"第{season[0]}季", season[2]
+            ).replace(f"第{season[1]}季", season[2])
+
+    # Fix the re.sub() calls by correctly using backreferences without additional quotes
+    passage_rewrite = re.sub(
+        r"(\d{4})年(\d{1,2})月(\d{1,2})日", r"\1/\2/\3", passage_rewrite
+    )
+    passage_rewrite = re.sub(r"(\d{4})年(\d{1,2})月", r"\1/\2", passage_rewrite)
+    passage_rewrite = re.sub(r"(\d{1,2})月(\d{1,2})日", r"\1/\2", passage_rewrite)
+
     return passage_rewrite
 
 
@@ -163,7 +268,6 @@ def jina_retrieve(
         queries = json.load(f)
 
     queries = queries["questions"]
-    queries = query_rewrite(queries)
 
     insurance_queries = [query for query in queries if query["category"] == "insurance"]
     finance_queries = [query for query in queries if query["category"] == "finance"]
@@ -195,6 +299,7 @@ def jina_retrieve(
             tqdm(category_queries, desc=f"Processing Queries for {category_name}")
         ):
             query_text = query["query"]
+            query_text = query_rewrite(query_text)
             source_ids = set(query["source"])
 
             # Determine which passages to use (source only or all passages)
@@ -229,6 +334,27 @@ def jina_retrieve(
             # Compare the best match IDs with the ground truth
             if category_gt[i] in best_match_ids:
                 correct += 1
+                if query["qid"] in [53, 59, 62, 64, 68, 90, 93, 97, 99]:
+                    mismatches.append(
+                        {
+                            "qid": total_queries + i + 1,
+                            "query": query_text,
+                            "predicted": [
+                                {
+                                    "id": int(match_id),
+                                    "score": float(
+                                        scores_tensor[top5_indices[idx]].item()
+                                    ),
+                                    "passage": relevant_passages.iloc[
+                                        top5_indices[idx]
+                                    ]["text"],
+                                }
+                                for idx, match_id in enumerate(top5_match_ids)
+                            ],
+                            "top1": int(best_match_ids[0]),
+                            "ground_truth": int(category_gt[i]),
+                        }
+                    )
             else:
                 mismatches.append(
                     {
