@@ -2,11 +2,10 @@ import json
 import pandas as pd
 
 
-# chunking = (Yes/No, chunk_size)
 def load_corpus_to_df(
     category,
     source_path,
-    chunk={"activate": False, "chunk_size": None, "overlap_size": None},
+    chunking={"activate": False, "chunk_size": None, "overlap_size": None},
     summary=False,
 ):
     # attributes in df = ["id", "text"]
@@ -24,19 +23,21 @@ def load_corpus_to_df(
         return pd.DataFrame({"id": id_list, "text": text_list})
 
     elif category == "insurance":
-        if chunk["activate"]:
+        if chunking["activate"]:
+            chunk_size = chunking["chunk_size"][category]
+            overlap_size = chunking["overlap_size"][category]
             for doc in data[category]:
                 if summary:
                     id_list.append(int(doc["index"]))
                     text_list.append(doc["summary"])
                 for i in range(
                     0,
-                    len(doc["text"]) - chunk["chunk_size"] + 1,
-                    chunk["chunk_size"] - chunk["overlap_size"],
+                    len(doc["text"]) - chunk_size + 1,
+                    chunk_size - overlap_size,
                 ):
                     id_list.append(int(doc["index"]))
                     text_list.append(
-                        doc["text"][i : i + chunk["chunk_size"]]
+                        doc["text"][i : i + chunk_size]
                         + " [標題] "
                         + doc["label"]
                         + " [/標題]."
@@ -50,25 +51,27 @@ def load_corpus_to_df(
             return pd.DataFrame({"id": id_list, "text": text_list})
 
     elif category == "finance":
-        if chunk["activate"]:
+        if chunking["activate"]:
+            chunk_size = chunking["chunk_size"][category]
+            overlap_size = chunking["overlap_size"][category]
             for doc in data[category]:
                 if summary:
                     id_list.append(int(doc["index"]))
                     text_list.append(doc["summary"])
                 for i in range(
                     0,
-                    len(doc["text"]) - chunk["chunk_size"] + 1,
-                    chunk["chunk_size"] - chunk["overlap_size"],
+                    len(doc["text"]) - chunk_size + 1,
+                    chunk_size - overlap_size,
                 ):
                     id_list.append(int(doc["index"]))
                     if doc["label"] == "":
-                        text_list.append(doc["text"][i : i + chunk["chunk_size"]])
+                        text_list.append(doc["text"][i : i + chunk_size])
                     else:
                         text_list.append(
                             "[標題] "
                             + doc["label"]
                             + " [/標題]. "
-                            + doc["text"][i : i + chunk["chunk_size"]]
+                            + doc["text"][i : i + chunk_size]
                         )
             return pd.DataFrame({"id": id_list, "text": text_list})
 
