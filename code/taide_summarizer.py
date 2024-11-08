@@ -1,9 +1,11 @@
 from vllm import LLM, SamplingParams
-from huggingface_hub import login
+
+# from huggingface_hub import login
 import os
 import json
 
-login()
+# 已經綁定hugginface token
+# login()
 
 model_name_or_path = "taide/Llama3-TAIDE-LX-8B-Chat-Alpha1"
 file_dir = os.path.dirname(os.path.realpath(__file__))
