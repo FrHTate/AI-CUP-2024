@@ -101,6 +101,64 @@ def load_ground_truths(source_path):
     return data["ground_truths"]
 
 
+def chinese_to_arabic(chinese_numeral):
+    chinese_numeral_map = {
+        "零": 0,
+        "一": 1,
+        "二": 2,
+        "三": 3,
+        "四": 4,
+        "五": 5,
+        "六": 6,
+        "七": 7,
+        "八": 8,
+        "九": 9,
+        "十": 10,
+    }
+    result = 0
+
+    if "十" in chinese_numeral:
+        parts = chinese_numeral.split("十")
+        if parts[0] == "":
+            result += 10
+        else:
+            result += chinese_numeral_map[parts[0]] * 10
+        if len(parts) > 1 and parts[1] != "":
+            result += chinese_numeral_map[parts[1]]
+    else:
+        for char in chinese_numeral:
+            result = result * 10 + chinese_numeral_map[char]
+
+    return result
+
+
+def convert_text_dates(text):
+    # Convert 民國 (ROC year) to Gregorian year only for three-digit years,
+    # ensuring not to convert already existing four-digit Gregorian years.
+    text = re.sub(r"(?<!\d)(\d{3})年", lambda m: f"{int(m.group(1)) + 1911}年", text)
+
+    # Convert fully Chinese representation of dates to Arabic numerals
+    text = re.sub(
+        r"([〇一二三四五六七八九十]+)年([〇一二三四五六七八九十]+)月([〇一二三四五六七八九十]+)日",
+        lambda m: f"{chinese_to_arabic(m.group(1)) + 1911}年{chinese_to_arabic(m.group(2))}月{chinese_to_arabic(m.group(3))}日",
+        text,
+    )
+
+    text = re.sub(
+        r"([〇一二三四五六七八九十]+)年([〇一二三四五六七八九十]+)月",
+        lambda m: f"{chinese_to_arabic(m.group(1)) + 1911}年{chinese_to_arabic(m.group(2))}月",
+        text,
+    )
+
+    text = re.sub(
+        r"([一二三四五六七八九十]+)月([〇一二三四五六七八九十]+)日",
+        lambda m: f"{chinese_to_arabic(m.group(1))}月{chinese_to_arabic(m.group(2))}日",
+        text,
+    )
+
+    return text
+
+
 def query_rewrite(query):
     # years = re.findall(r"(\d{4})年", query)
     # if years:
