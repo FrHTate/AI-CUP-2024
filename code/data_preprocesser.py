@@ -8,6 +8,7 @@ def load_corpus_to_df(
     source_path,
     chunking={"activate": False, "chunk_size": None, "overlap_size": None},
     summary=False,
+    rewrite=False,
 ):
     # attributes in df = ["id", "text"]
     id_list = []
@@ -21,7 +22,6 @@ def load_corpus_to_df(
                 for answer in qa["answers"]:
                     id_list.append(int(id))
                     text_list.append(qa["question"] + answer)
-        return pd.DataFrame({"id": id_list, "text": text_list})
 
     elif category == "insurance":
         if chunking["activate"]:
@@ -43,13 +43,11 @@ def load_corpus_to_df(
                         + doc["label"]
                         + " [/標題]."
                     )
-            return pd.DataFrame({"id": id_list, "text": text_list})
 
         else:
             for doc in data[category]:
                 id_list.append(int(doc["index"]))
                 text_list.append(doc["text"])
-            return pd.DataFrame({"id": id_list, "text": text_list})
 
     elif category == "finance":
         if chunking["activate"]:
@@ -74,23 +72,30 @@ def load_corpus_to_df(
                             + " [/標題]. "
                             + doc["text"][i : i + chunk_size]
                         )
-            return pd.DataFrame({"id": id_list, "text": text_list})
 
         else:
             for doc in data[category]:
                 id_list.append(int(doc["index"]))
                 text_list.append(doc["text"])
-            return pd.DataFrame({"id": id_list, "text": text_list})
 
     else:
         raise ValueError(
             "Invalid category, please choose from 'faq', 'insurance', 'finance'"
         )
 
+    if rewrite:
+        text_list = [passage_rewrite(text) for text in text_list]
 
-def load_queries(source_path):
+    return pd.DataFrame({"id": id_list, "text": text_list})
+
+
+def load_queries(source_path, rewrite=False):
     with open(source_path, "r") as f:
         data = json.load(f)
+
+    if rewrite:
+        for query in data["questions"]:
+            query["query"] = query_rewrite(query["query"])
     return data["questions"]
 
 
