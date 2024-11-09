@@ -21,22 +21,37 @@ def load_data(source_path):
     return corpus_dict
 
 
+# # 讀取單個PDF文件並返回其文本內容
+# def read_pdf(pdf_loc, page_infos: list = None):
+#     pdf = pdfplumber.open(pdf_loc)  # 打開指定的PDF文件
+
+#     # TODO: 可自行用其他方法讀入資料，或是對pdf中多模態資料（表格,圖片等）進行處理
+
+#     # 如果指定了頁面範圍，則只提取該範圍的頁面，否則提取所有頁面
+#     pages = pdf.pages[page_infos[0] : page_infos[1]] if page_infos else pdf.pages
+#     pdf_text = ""
+#     for _, page in enumerate(pages):  # 迴圈遍歷每一頁
+#         text = page.extract_text()  # 提取頁面的文本內容
+#         if text:
+#             pdf_text += text
+#     pdf.close()  # 關閉PDF文件
+
+#     return pdf_text  # 返回萃取出的文本
+
+
 # 讀取單個PDF文件並返回其文本內容
 def read_pdf(pdf_loc, page_infos: list = None):
-    pdf = pdfplumber.open(pdf_loc)  # 打開指定的PDF文件
-
-    # TODO: 可自行用其他方法讀入資料，或是對pdf中多模態資料（表格,圖片等）進行處理
-
-    # 如果指定了頁面範圍，則只提取該範圍的頁面，否則提取所有頁面
-    pages = pdf.pages[page_infos[0] : page_infos[1]] if page_infos else pdf.pages
     pdf_text = ""
-    for _, page in enumerate(pages):  # 迴圈遍歷每一頁
-        text = page.extract_text()  # 提取頁面的文本內容
-        if text:
-            pdf_text += text
-    pdf.close()  # 關閉PDF文件
+    with pdfplumber.open(pdf_loc) as pdf:
 
-    return pdf_text  # 返回萃取出的文本
+        pages = pdf.pages[page_infos[0] : page_infos[1]] if page_infos else pdf.pages
+
+        for page in pages:
+            text = page.extract_text()
+            if text:
+                pdf_text += text
+
+    return pdf_text
 
 
 # 根據查詢語句和指定的來源，檢索答案
@@ -48,7 +63,9 @@ def BM25_retrieve(qs, source, corpus_dict):
     tokenized_corpus = [
         list(jieba.cut_for_search(doc)) for doc in filtered_corpus
     ]  # 將每篇文檔進行分詞
-    bm25 = BM25Okapi(tokenized_corpus,)  # 使用BM25演算法建立檢索模型
+    bm25 = BM25Okapi(
+        tokenized_corpus,
+    )  # 使用BM25演算法建立檢索模型
     tokenized_query = list(jieba.cut_for_search(qs))  # 將查詢語句進行分詞
     ans = bm25.get_top_n(
         tokenized_query, list(filtered_corpus), n=1
@@ -91,15 +108,17 @@ if __name__ == "__main__":
     with open(args.question_path, "rb") as f:
         qs_ref = json.load(f)  # 讀取問題檔案
 
-    '''這段laod finance/*.pdf into corpus_dict_finance'''
+    """這段laod finance/*.pdf into corpus_dict_finance"""
     # source_path_finance = os.path.join(args.source_path, "finance")  # 設定參考資料路徑
     # corpus_dict_finance = load_data(source_path_finance)
 
-    '''這段load finance_filtered.json into corpus_dict_finance'''
+    """這段load finance_filtered.json into corpus_dict_finance"""
     # To retrieve filtered_finance
     with open(os.path.join(args.source_path, "filtered_finance.json"), "rb") as f_f:
         corpus_dict_finance = json.load(f_f)
-        corpus_dict_finance = {int(f["index"]): f["text"] for f in corpus_dict_finance["finance"]}
+        corpus_dict_finance = {
+            int(f["index"]): f["text"] for f in corpus_dict_finance["finance"]
+        }
 
     source_path_insurance = os.path.join(
         args.source_path, "insurance"
@@ -111,7 +130,6 @@ if __name__ == "__main__":
         key_to_source_dict = {
             int(key): value for key, value in key_to_source_dict.items()
         }
-    
 
     for q_dict in qs_ref["questions"]:
         if q_dict["category"] == "finance":

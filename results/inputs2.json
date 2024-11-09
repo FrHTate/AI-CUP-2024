@@ -1,0 +1,93 @@
+{
+    "answers": [
+        {
+            "qid": 0,
+            "retrieve": 123,
+            "text": "..."
+        },
+        {
+            "qid": 1,
+            "retrieve": 100,
+            "text": "..."
+        },
+        {
+            "qid": 2,
+            "retrieve": 123,
+            "text": "..."
+        },
+        {
+            "qid": 3,
+            "retrieve": 100,
+            "text": "..."
+        },
+        {
+            "qid": 4,
+            "retrieve": 123,
+            "text": "..."
+        },
+        {
+            "qid": 5,
+            "retrieve": 100,
+            "text": "..."
+        },
+        {
+            "qid": 6,
+            "retrieve": 123,
+            "text": "..."
+        },
+        {
+            "qid": 7,
+            "retrieve": 100,
+            "text": "..."
+        },
+        {
+            "qid": 8,
+            "retrieve": 123,
+            "text": "..."
+        },
+        {
+            "qid": 9,
+            "retrieve": 100,
+            "text": "..."
+        },
+        {
+            "qid": 10,
+            "retrieve": 123,
+            "text": "..."
+        },
+        {
+            "qid": 11,
+            "retrieve": 100,
+            "text": "..."
+        },{
+            "qid": 12,
+            "retrieve": 123,
+            "text": "..."
+        },
+        {
+            "qid": 13,
+            "retrieve": 100,
+            "text": "..."
+        },
+        {
+            "qid": 14,
+            "retrieve": 123,
+            "text": "..."
+        },
+        {
+            "qid": 15,
+            "retrieve": 100,
+            "text": "..."
+        },
+        {
+            "qid": 16,
+            "retrieve": 123,
+            "text": "..."
+        },
+        {
+            "qid": 17,
+            "retrieve": 100,
+            "text": "..."
+        }
+    ]
+}
