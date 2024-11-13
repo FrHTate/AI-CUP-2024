@@ -52,9 +52,10 @@ def pdf_image_whole_file(path, dpi=300):
 
 
 if __name__ == "__main__":
+    # test function
     # 抓image pdf的label
-    # text = pdf_image_label_extractor("300.pdf")
-    # print(text)
+    text = pdf_image_label_extractor("300.pdf")
+    print(text)
 
     # 抓image pdf的全部文字
     text = pdf_image_whole_file("757.pdf", dpi=400)
