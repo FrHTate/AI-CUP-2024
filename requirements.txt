@@ -1,0 +1,10 @@
+pdfplumber
+
+jieba
+tqdm
+rank_bm25
+numpy
+pandas
+
+torch
+transformers
